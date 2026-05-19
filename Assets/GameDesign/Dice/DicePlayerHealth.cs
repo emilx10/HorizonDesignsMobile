@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 
 [DisallowMultipleComponent]
 public sealed class DicePlayerHealth : MonoBehaviour
@@ -7,8 +8,10 @@ public sealed class DicePlayerHealth : MonoBehaviour
     [SerializeField, Min(1)] private int maxHealth = 20;
     [SerializeField] private Text healthText;
 
+    public event Action Defeated;
+
     public int MaxHealth => maxHealth;
-    public int CurrentHealth { get; private set; }
+    public float CurrentHealth { get; private set; }
 
     private void Awake()
     {
@@ -17,15 +20,23 @@ public sealed class DicePlayerHealth : MonoBehaviour
         RefreshUi();
     }
 
-    public void TakeDamage(int amount)
+    public bool TakeDamage(float amount)
     {
-        CurrentHealth = Mathf.Max(0, CurrentHealth - Mathf.Max(0, amount));
+        CurrentHealth = Mathf.Max(0, CurrentHealth - Mathf.Max(0f, amount));
+        var wasDefeated = CurrentHealth <= 0;
 
-        if (CurrentHealth <= 0)
+        if (wasDefeated)
         {
-            CurrentHealth = maxHealth;
+            Defeated?.Invoke();
         }
 
+        RefreshUi();
+        return wasDefeated;
+    }
+
+    public void RestoreFull()
+    {
+        CurrentHealth = maxHealth;
         RefreshUi();
     }
 
@@ -72,7 +83,12 @@ public sealed class DicePlayerHealth : MonoBehaviour
     {
         if (healthText != null)
         {
-            healthText.text = $"HP {CurrentHealth}/{maxHealth}";
+            healthText.text = $"HP {FormatNumber(CurrentHealth)}/{maxHealth}";
         }
+    }
+
+    private static string FormatNumber(float value)
+    {
+        return Mathf.Approximately(value % 1f, 0f) ? Mathf.RoundToInt(value).ToString() : value.ToString("0.0");
     }
 }

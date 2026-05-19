@@ -215,11 +215,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c0abf867acf4b9f9cf0d2d73c865c28, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  experienceToUpgrade: 2
+  baseUpgradeCost: 3
+  levelsPerUpgradeCostStep: 5
+  upgradeCostIncreasePerStep: 2
   damageIncreasePerUpgrade: 1
   diceDamage: {fileID: 0}
   damageDisplay: {fileID: 0}
-  experienceText: {fileID: 0}
+  coinsText: {fileID: 0}
   upgradeButton: {fileID: 0}
 --- !u!114 &11400005
 MonoBehaviour:
@@ -239,7 +241,9 @@ MonoBehaviour:
   playerHealth: {fileID: 0}
   enemy: {fileID: 0}
   enemyPrefab: {fileID: 11400000, guid: cb6f18eece164f0799c91fae2c20125c, type: 3}
-  enemySpawnPosition: {x: 0, y: 0, z: 2.5}
+  enemySpawnPosition: {x: 0, y: 2.5, z: 2.5}
+  levelText: {fileID: 0}
+  retryLastLevelButton: {fileID: 0}
 --- !u!114 &11400006
 MonoBehaviour:
   m_ObjectHideFlags: 0

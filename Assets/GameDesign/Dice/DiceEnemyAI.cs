@@ -8,8 +8,11 @@ using UnityEngine.UI;
 public sealed class DiceEnemyAI : MonoBehaviour
 {
     [SerializeField, Min(1)] private int maxHealth = 10;
-    [SerializeField, Min(0)] private int damage = 1;
-    [SerializeField, Min(0)] private int experienceReward = 1;
+    [SerializeField, Min(0.1f)] private float baseDamageMultiplier = 1f;
+    [SerializeField, Min(1)] private int levelsPerDamageStep = 5;
+    [SerializeField, Min(0f)] private float damageMultiplierStep = 0.5f;
+    [SerializeField, Min(1)] private int baseCoinReward = 1;
+    [SerializeField, Min(1)] private int levelsPerCoinRewardStep = 5;
     [SerializeField, Min(0f)] private float respawnDelay = 1.25f;
     [SerializeField, Min(0.2f)] private float rollDuration = 0.8f;
     [SerializeField, Min(1)] private int extraSpinTurns = 2;
@@ -17,17 +20,22 @@ public sealed class DiceEnemyAI : MonoBehaviour
     [SerializeField] private Camera targetCamera;
     [SerializeField] private Text healthText;
     [SerializeField] private Text damageText;
+    [SerializeField] private Image healthBarFill;
     [SerializeField] private Vector3 healthTextOffset = new(0f, 0.85f, 0f);
+    [SerializeField] private Vector3 healthBarOffset = new(0f, 0.68f, 0f);
     [SerializeField] private Vector3 damageTextOffset = new(0f, -0.85f, 0f);
 
     public event Action<DiceEnemyAI, int> Defeated;
 
     public int MaxHealth => maxHealth;
     public int CurrentHealth { get; private set; }
-    public int Damage => damage;
-    public int ExperienceReward => experienceReward;
+    public float DamageMultiplier { get; private set; } = 1f;
+    public int CurrentValue { get; private set; } = 1;
+    public float CurrentDamage => CurrentValue * DamageMultiplier;
+    public int CoinReward { get; private set; } = 1;
     public bool IsDefeated { get; private set; }
     public bool IsRolling { get; private set; }
+    public float RespawnDelay => respawnDelay;
 
     private Renderer[] renderers;
     private Collider[] colliders;
@@ -57,6 +65,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
             damageText = CreateText("Enemy Damage Text", 34, Color.red);
         }
 
+        if (healthBarFill == null)
+        {
+            healthBarFill = CreateHealthBar();
+        }
+
         RefreshUi();
     }
 
@@ -77,17 +90,22 @@ public sealed class DiceEnemyAI : MonoBehaviour
             healthText.rectTransform.position = targetCamera.WorldToScreenPoint(transform.position + healthTextOffset);
         }
 
+        if (healthBarFill != null)
+        {
+            healthBarFill.transform.parent.position = targetCamera.WorldToScreenPoint(transform.position + healthBarOffset);
+        }
+
         if (damageText != null)
         {
             damageText.rectTransform.position = targetCamera.WorldToScreenPoint(transform.position + damageTextOffset);
         }
     }
 
-    public void TakeDamage(int amount)
+    public bool TakeDamage(int amount)
     {
         if (IsDefeated)
         {
-            return;
+            return false;
         }
 
         CurrentHealth = Mathf.Max(0, CurrentHealth - Mathf.Max(0, amount));
@@ -96,7 +114,10 @@ public sealed class DiceEnemyAI : MonoBehaviour
         if (CurrentHealth <= 0)
         {
             Defeat();
+            return true;
         }
+
+        return false;
     }
 
     public void SpinThenAct(Action onComplete)
@@ -114,10 +135,25 @@ public sealed class DiceEnemyAI : MonoBehaviour
         rollRoutine = StartCoroutine(SpinRoutine(onComplete));
     }
 
+    public void ConfigureForLevel(int level)
+    {
+        level = Mathf.Max(1, level);
+        maxHealth = 8 + (level * 2);
+        DamageMultiplier = baseDamageMultiplier + (((level - 1) / levelsPerDamageStep) * damageMultiplierStep);
+        CoinReward = baseCoinReward * (int)Mathf.Pow(2, (level - 1) / levelsPerCoinRewardStep);
+
+        homePosition = transform.position;
+        CurrentHealth = maxHealth;
+        CurrentValue = GetCameraFacingValue();
+        IsDefeated = false;
+        SetVisible(true);
+        RefreshUi();
+    }
+
     private void Defeat()
     {
         IsDefeated = true;
-        Defeated?.Invoke(this, experienceReward);
+        Defeated?.Invoke(this, CoinReward);
 
         if (respawnRoutine != null)
         {
@@ -145,7 +181,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         var startPosition = transform.position;
         var startEuler = transform.eulerAngles;
-        var targetEuler = startEuler + new Vector3(
+        CurrentValue = UnityEngine.Random.Range(1, 7);
+
+        var targetEuler = GetEulerShowingValueToCamera(CurrentValue);
+
+        var animatedEndEuler = targetEuler + new Vector3(
             UnityEngine.Random.Range(extraSpinTurns, extraSpinTurns + 3) * 360f,
             UnityEngine.Random.Range(extraSpinTurns, extraSpinTurns + 3) * 360f,
             UnityEngine.Random.Range(extraSpinTurns, extraSpinTurns + 3) * 360f);
@@ -159,13 +199,15 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
             transform.position = Vector3.Lerp(startPosition, homePosition, eased)
                                  + Vector3.up * (Mathf.Sin(t * Mathf.PI) * swingHeight);
-            transform.rotation = Quaternion.Euler(Vector3.LerpUnclamped(startEuler, targetEuler, eased));
+            transform.rotation = Quaternion.Euler(Vector3.LerpUnclamped(startEuler, animatedEndEuler, eased));
 
             yield return null;
         }
 
         transform.position = homePosition;
         transform.rotation = Quaternion.Euler(targetEuler);
+        CurrentValue = GetCameraFacingValue();
+        RefreshUi();
         IsRolling = false;
         rollRoutine = null;
 
@@ -177,6 +219,9 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
     private void SetVisible(bool visible)
     {
+        renderers = GetComponentsInChildren<Renderer>(true);
+        colliders = GetComponentsInChildren<Collider>(true);
+
         foreach (var enemyRenderer in renderers)
         {
             enemyRenderer.enabled = visible;
@@ -196,6 +241,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
         {
             damageText.enabled = visible;
         }
+
+        if (healthBarFill != null)
+        {
+            healthBarFill.transform.parent.gameObject.SetActive(visible);
+        }
     }
 
     private void RefreshUi()
@@ -205,10 +255,111 @@ public sealed class DiceEnemyAI : MonoBehaviour
             healthText.text = $"ENEMY HP {CurrentHealth}/{maxHealth}";
         }
 
+        if (healthBarFill != null)
+        {
+            var fillPercent = maxHealth > 0 ? Mathf.Clamp01((float)CurrentHealth / maxHealth) : 0f;
+            healthBarFill.rectTransform.anchorMax = new Vector2(fillPercent, 1f);
+            healthBarFill.rectTransform.offsetMax = new Vector2(-3f, -3f);
+        }
+
         if (damageText != null)
         {
-            damageText.text = $"ENEMY DMG {damage}";
+            damageText.text = $"ENEMY DMG {FormatNumber(CurrentDamage)}";
         }
+    }
+
+    private Vector3 GetEulerShowingValueToCamera(int value)
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+
+        if (targetCamera == null)
+        {
+            return Vector3.zero;
+        }
+
+        var directionToCamera = (targetCamera.transform.position - transform.position).normalized;
+        var targetLocalNormal = GetLocalNormalForValue(value);
+        var bestEuler = Vector3.zero;
+        var bestDot = float.NegativeInfinity;
+
+        for (var x = 0; x < 360; x += 90)
+        {
+            for (var y = 0; y < 360; y += 90)
+            {
+                for (var z = 0; z < 360; z += 90)
+                {
+                    var euler = new Vector3(x, y, z);
+                    var rotation = Quaternion.Euler(euler);
+                    var dot = Vector3.Dot(rotation * targetLocalNormal, directionToCamera);
+
+                    if (dot > bestDot)
+                    {
+                        bestDot = dot;
+                        bestEuler = euler;
+                    }
+                }
+            }
+        }
+
+        return bestEuler;
+    }
+
+    private int GetCameraFacingValue()
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+
+        if (targetCamera == null)
+        {
+            return CurrentValue;
+        }
+
+        var directionToCamera = (targetCamera.transform.position - transform.position).normalized;
+        var bestValue = 1;
+        var bestDot = float.NegativeInfinity;
+
+        CheckFace(Vector3.up, 1, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.down, 6, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.forward, 2, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.back, 5, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.right, 3, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.left, 4, directionToCamera, ref bestValue, ref bestDot);
+
+        return bestValue;
+    }
+
+    private void CheckFace(Vector3 localNormal, int value, Vector3 directionToCamera, ref int bestValue, ref float bestDot)
+    {
+        var dot = Vector3.Dot(transform.TransformDirection(localNormal), directionToCamera);
+
+        if (dot > bestDot)
+        {
+            bestDot = dot;
+            bestValue = value;
+        }
+    }
+
+    private static Vector3 GetLocalNormalForValue(int value)
+    {
+        return value switch
+        {
+            2 => Vector3.forward,
+            3 => Vector3.right,
+            4 => Vector3.left,
+            5 => Vector3.back,
+            6 => Vector3.down,
+            _ => Vector3.up,
+        };
+    }
+
+    private static string FormatNumber(float value)
+    {
+        return Mathf.Approximately(value % 1f, 0f) ? Mathf.RoundToInt(value).ToString() : value.ToString("0.0");
     }
 
     private static Text CreateText(string objectName, int fontSize, Color color)
@@ -239,5 +390,46 @@ public sealed class DiceEnemyAI : MonoBehaviour
         text.rectTransform.sizeDelta = new Vector2(360f, 72f);
 
         return text;
+    }
+
+    private static Image CreateHealthBar()
+    {
+        var canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            var scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1080f, 1920f);
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        var root = new GameObject("Enemy Health Bar", typeof(RectTransform), typeof(Image));
+        root.transform.SetParent(canvas.transform, false);
+
+        var rootRect = root.GetComponent<RectTransform>();
+        rootRect.sizeDelta = new Vector2(260f, 24f);
+
+        var background = root.GetComponent<Image>();
+        background.color = new Color(0.12f, 0.04f, 0.04f, 0.9f);
+        background.raycastTarget = false;
+
+        var fillObject = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillObject.transform.SetParent(root.transform, false);
+
+        var fillRect = fillObject.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = new Vector2(3f, 3f);
+        fillRect.offsetMax = new Vector2(-3f, -3f);
+
+        var fill = fillObject.GetComponent<Image>();
+        fill.color = new Color(0.9f, 0.08f, 0.06f, 1f);
+        fill.raycastTarget = false;
+
+        return fill;
     }
 }

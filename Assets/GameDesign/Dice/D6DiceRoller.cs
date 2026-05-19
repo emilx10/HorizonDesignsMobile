@@ -12,6 +12,7 @@ public sealed class D6DiceRoller : MonoBehaviour
     [Header("Input")]
     [SerializeField] private Camera targetCamera;
     [SerializeField] private LayerMask hittableLayers = ~0;
+    [SerializeField] private bool inputEnabled = true;
 
     [Header("Roll")]
     [SerializeField, Min(0.2f)] private float rollDuration = 1.15f;
@@ -23,6 +24,7 @@ public sealed class D6DiceRoller : MonoBehaviour
 
     public int CurrentValue { get; private set; } = 1;
     public bool IsRolling { get; private set; }
+    public bool InputEnabled => inputEnabled;
 
     private Coroutine activeRoll;
     private Vector3 homePosition;
@@ -49,7 +51,7 @@ public sealed class D6DiceRoller : MonoBehaviour
 
     private void Update()
     {
-        if (IsRolling)
+        if (!inputEnabled || IsRolling)
         {
             return;
         }
@@ -102,12 +104,22 @@ public sealed class D6DiceRoller : MonoBehaviour
 
     public void Roll()
     {
+        if (!inputEnabled || IsRolling)
+        {
+            return;
+        }
+
         var result = UnityEngine.Random.Range(1, 7);
         RollTo(result);
     }
 
     public void RollTo(int value)
     {
+        if (!inputEnabled)
+        {
+            return;
+        }
+
         value = Mathf.Clamp(value, 1, 6);
 
         if (activeRoll != null)
@@ -116,6 +128,11 @@ public sealed class D6DiceRoller : MonoBehaviour
         }
 
         activeRoll = StartCoroutine(RollRoutine(value));
+    }
+
+    public void SetInputEnabled(bool enabled)
+    {
+        inputEnabled = enabled;
     }
 
     private void TryRollAt(Vector2 screenPosition)

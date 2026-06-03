@@ -114,7 +114,7 @@ public sealed class MobileGameUiController : MonoBehaviour
 
     private void AddGameplayTint()
     {
-        var playArea = NewRect("Gameplay Screen Space", shell, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(0f, -200f), new Vector2(0f, -710f));
+        var playArea = NewRect("Gameplay Screen Space", shell, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), new Vector2(0f, 0f), new Vector2(0f, -200f), new Vector2(0f, -710f) , new Vector2(0f,0f));
         var image = playArea.gameObject.AddComponent<Image>();
         image.color = new Color(0.72f, 0.72f, 0.72f, 0.32f);
         image.raycastTarget = false;

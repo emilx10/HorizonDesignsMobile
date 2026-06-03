@@ -87,17 +87,23 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         if (healthText != null)
         {
-            healthText.rectTransform.position = targetCamera.WorldToScreenPoint(transform.position + healthTextOffset);
+            var rectTransform = healthText.rectTransform;
+            var screenPosition = targetCamera.WorldToScreenPoint(transform.position + healthTextOffset);
+            rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
         }
 
         if (healthBarFill != null)
         {
-            healthBarFill.transform.parent.position = targetCamera.WorldToScreenPoint(transform.position + healthBarOffset);
+            var rootRect = (RectTransform)healthBarFill.transform.parent;
+            var screenPosition = targetCamera.WorldToScreenPoint(transform.position + healthBarOffset);
+            rootRect.position = MobileLayoutUtility.ClampToScreen(screenPosition, rootRect.sizeDelta);
         }
 
         if (damageText != null)
         {
-            damageText.rectTransform.position = targetCamera.WorldToScreenPoint(transform.position + damageTextOffset);
+            var rectTransform = damageText.rectTransform;
+            var screenPosition = targetCamera.WorldToScreenPoint(transform.position + damageTextOffset);
+            rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
         }
     }
 
@@ -364,21 +370,10 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
     private static Text CreateText(string objectName, int fontSize, Color color)
     {
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         var textObject = new GameObject(objectName, typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(canvas.transform, false);
+        textObject.transform.SetParent(uiRoot, false);
 
         var text = textObject.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -388,27 +383,17 @@ public sealed class DiceEnemyAI : MonoBehaviour
         text.color = color;
         text.raycastTarget = false;
         text.rectTransform.sizeDelta = new Vector2(360f, 72f);
+        MobileLayoutUtility.ConfigureText(text, fontSize, 18);
 
         return text;
     }
 
     private static Image CreateHealthBar()
     {
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         var root = new GameObject("Enemy Health Bar", typeof(RectTransform), typeof(Image));
-        root.transform.SetParent(canvas.transform, false);
+        root.transform.SetParent(uiRoot, false);
 
         var rootRect = root.GetComponent<RectTransform>();
         rootRect.sizeDelta = new Vector2(260f, 24f);

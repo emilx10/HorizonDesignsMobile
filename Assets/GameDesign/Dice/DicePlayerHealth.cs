@@ -47,21 +47,10 @@ public sealed class DicePlayerHealth : MonoBehaviour
             return;
         }
 
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         var textObject = new GameObject("Player Health Text", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(canvas.transform, false);
+        textObject.transform.SetParent(uiRoot, false);
 
         healthText = textObject.GetComponent<Text>();
         healthText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -70,6 +59,7 @@ public sealed class DicePlayerHealth : MonoBehaviour
         healthText.alignment = TextAnchor.MiddleLeft;
         healthText.color = Color.green;
         healthText.raycastTarget = false;
+        MobileLayoutUtility.ConfigureText(healthText, 38, 22);
 
         var rect = healthText.rectTransform;
         rect.anchorMin = new Vector2(0f, 1f);

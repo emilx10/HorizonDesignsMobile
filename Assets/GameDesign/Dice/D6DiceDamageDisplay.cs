@@ -67,7 +67,9 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
             return;
         }
 
-        damageText.rectTransform.position = targetCamera.WorldToScreenPoint(transform.position + worldOffset);
+        var rectTransform = damageText.rectTransform;
+        var screenPosition = targetCamera.WorldToScreenPoint(transform.position + worldOffset);
+        rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
     }
 
     public void Refresh()
@@ -87,21 +89,10 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
 
     private static Text CreateDamageText()
     {
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         var textObject = new GameObject("Dice Damage Text", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(canvas.transform, false);
+        textObject.transform.SetParent(uiRoot, false);
 
         var text = textObject.GetComponent<Text>();
         text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -110,6 +101,7 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
         text.alignment = TextAnchor.MiddleCenter;
         text.color = Color.white;
         text.raycastTarget = false;
+        MobileLayoutUtility.ConfigureText(text, 42, 22);
 
         var rectTransform = text.rectTransform;
         rectTransform.sizeDelta = new Vector2(260f, 72f);

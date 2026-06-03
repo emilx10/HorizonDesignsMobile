@@ -52,6 +52,7 @@ public sealed class DiceBattleController : MonoBehaviour
 
         EnsureEnemy();
         ConfigureEnemyForCurrentLevel();
+        ConfigureCameraForMobile();
         SetPlayerRollInput(true);
         CreateUiIfNeeded();
         RefreshLevelUi();
@@ -202,6 +203,7 @@ public sealed class DiceBattleController : MonoBehaviour
             enemy.transform.position = enemySpawnPosition;
         }
 
+        ConfigureCameraForMobile();
         SubscribeEnemy();
     }
 
@@ -251,23 +253,12 @@ public sealed class DiceBattleController : MonoBehaviour
     {
         EnsureEventSystem();
 
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         if (levelText == null)
         {
             var textObject = new GameObject("Level Text", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(canvas.transform, false);
+            textObject.transform.SetParent(uiRoot, false);
 
             levelText = textObject.GetComponent<Text>();
             levelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -276,6 +267,7 @@ public sealed class DiceBattleController : MonoBehaviour
             levelText.alignment = TextAnchor.UpperCenter;
             levelText.color = Color.white;
             levelText.raycastTarget = false;
+            MobileLayoutUtility.ConfigureText(levelText, 40, 24);
 
             var rect = levelText.rectTransform;
             rect.anchorMin = new Vector2(0.5f, 1f);
@@ -287,7 +279,7 @@ public sealed class DiceBattleController : MonoBehaviour
 
         if (retryLastLevelButton == null)
         {
-            retryLastLevelButton = CreateButton(canvas.transform, "Retry Last Level Button", "RETRY", new Vector2(-32f, -112f));
+            retryLastLevelButton = CreateButton(uiRoot, "Retry Last Level Button", "RETRY", new Vector2(-32f, -112f));
         }
     }
 
@@ -325,8 +317,26 @@ public sealed class DiceBattleController : MonoBehaviour
         label.color = Color.white;
         label.text = labelText;
         label.raycastTarget = false;
+        MobileLayoutUtility.ConfigureText(label, 34, 20);
 
         return button;
+    }
+
+    private void ConfigureCameraForMobile()
+    {
+        var mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            return;
+        }
+
+        var fitter = mainCamera.GetComponent<MobilePortraitCameraFitter>();
+        if (fitter == null)
+        {
+            fitter = mainCamera.gameObject.AddComponent<MobilePortraitCameraFitter>();
+        }
+
+        fitter.SetTargets(transform, enemy != null ? enemy.transform : null);
     }
 
     private void RefreshLevelUi()

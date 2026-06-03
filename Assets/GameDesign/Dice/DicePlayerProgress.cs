@@ -91,23 +91,12 @@ public sealed class DicePlayerProgress : MonoBehaviour
     {
         EnsureEventSystem();
 
-        var canvas = FindFirstObjectByType<Canvas>();
-        if (canvas == null)
-        {
-            var canvasObject = new GameObject("Dice UI Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-
-            var scaler = canvasObject.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080f, 1920f);
-            scaler.matchWidthOrHeight = 0.5f;
-        }
+        var uiRoot = MobileLayoutUtility.GetUiRoot();
 
         if (coinsText == null)
         {
             var textObject = new GameObject("Coins Text", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(canvas.transform, false);
+            textObject.transform.SetParent(uiRoot, false);
 
             coinsText = textObject.GetComponent<Text>();
             coinsText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -116,6 +105,7 @@ public sealed class DicePlayerProgress : MonoBehaviour
             coinsText.alignment = TextAnchor.MiddleLeft;
             coinsText.color = new Color(1f, 0.82f, 0.18f, 1f);
             coinsText.raycastTarget = false;
+            MobileLayoutUtility.ConfigureText(coinsText, 38, 22);
 
             var rect = coinsText.rectTransform;
             rect.anchorMin = new Vector2(0f, 1f);
@@ -128,7 +118,7 @@ public sealed class DicePlayerProgress : MonoBehaviour
         if (upgradeButton == null)
         {
             var buttonObject = new GameObject("Upgrade Button", typeof(RectTransform), typeof(Image), typeof(Button));
-            buttonObject.transform.SetParent(canvas.transform, false);
+            buttonObject.transform.SetParent(uiRoot, false);
 
             var rect = buttonObject.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(1f, 0.5f);

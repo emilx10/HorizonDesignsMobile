@@ -6,12 +6,14 @@ using TMPro;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(D6DiceRoller))]
 [RequireComponent(typeof(D6DiceDamage))]
+[RequireComponent(typeof(DiceSpellLoadout))]
 [RequireComponent(typeof(DicePlayerProgress))]
 [RequireComponent(typeof(DicePlayerHealth))]
 public sealed class DiceBattleController : MonoBehaviour
 {
     [SerializeField] private D6DiceRoller diceRoller;
     [SerializeField] private D6DiceDamage diceDamage;
+    [SerializeField] private DiceSpellLoadout spellLoadout;
     [SerializeField] private DicePlayerProgress playerProgress;
     [SerializeField] private DicePlayerHealth playerHealth;
     [SerializeField] private DiceEnemyAI enemy;
@@ -35,6 +37,21 @@ public sealed class DiceBattleController : MonoBehaviour
         if (diceDamage == null)
         {
             diceDamage = GetComponent<D6DiceDamage>();
+        }
+
+        if (spellLoadout == null)
+        {
+            spellLoadout = GetComponent<DiceSpellLoadout>();
+        }
+
+        if (spellLoadout == null)
+        {
+            spellLoadout = gameObject.AddComponent<DiceSpellLoadout>();
+        }
+
+        if (TryGetComponent(out D6DiceVisual diceVisual))
+        {
+            diceVisual.SetSpellLoadout(spellLoadout);
         }
 
         if (playerProgress == null)
@@ -107,7 +124,15 @@ public sealed class DiceBattleController : MonoBehaviour
             return;
         }
 
-        var enemyWasDefeated = enemy.TakeDamage(diceDamage.DiceDamage);
+        var frontFacingPip = Mathf.Clamp(diceDamage.DiceValue, 1, 6);
+
+        var baseDamage = diceDamage.DefaultDamage * frontFacingPip;
+        var spellDamage = spellLoadout != null
+            ? spellLoadout.CastSpellForPip(frontFacingPip, diceDamage, enemy)
+            : 0;
+        var totalDamage = baseDamage + spellDamage;
+
+        var enemyWasDefeated = enemy.TakeDamage(totalDamage);
 
         if (!enemyWasDefeated && !enemy.IsDefeated && playerHealth != null)
         {
@@ -284,17 +309,24 @@ public sealed class DiceBattleController : MonoBehaviour
 
     private void RefreshLevelUi()
     {
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi != null)
+        {
+            mobileUi.SetLevel(currentLevel);
+            mobileUi.SetRetryButtonVisible(canRetryLastLevel);
+        }
+
         if (playerProgress != null)
         {
             playerProgress.SetCurrentLevel(currentLevel);
         }
 
-        if (levelText != null)
+        if (mobileUi == null && levelText != null)
         {
             levelText.text = $"LEVEL {currentLevel}";
         }
 
-        if (retryLastLevelButton != null)
+        if (mobileUi == null && retryLastLevelButton != null)
         {
             retryLastLevelButton.gameObject.SetActive(canRetryLastLevel);
         }

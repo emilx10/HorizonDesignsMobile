@@ -19,7 +19,7 @@ public sealed class DicePlayerProgress : MonoBehaviour
     public int Coins { get; private set; }
     public int CurrentLevel { get; private set; } = 1;
     public int UpgradeLevel { get; private set; } = 1;
-    public int CurrentUpgradeCost => baseUpgradeCost + (((CurrentLevel - 1) / levelsPerUpgradeCostStep) * upgradeCostIncreasePerStep);
+    public int CurrentUpgradeCost => GetCurrentUpgradeCost();
 
     private void Awake()
     {
@@ -67,14 +67,21 @@ public sealed class DicePlayerProgress : MonoBehaviour
 
     public void UpgradeDamage()
     {
-        if (Coins < CurrentUpgradeCost || diceDamage == null)
+        var upgradeCost = GetCurrentUpgradeCost();
+        if (Coins < upgradeCost || diceDamage == null)
         {
             return;
         }
 
-        Coins -= CurrentUpgradeCost;
+        Coins -= upgradeCost;
         UpgradeLevel++;
         diceDamage.AddDefaultDamage(damageIncreasePerUpgrade);
+
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi != null)
+        {
+            mobileUi.RecordDamageUpgradeBought();
+        }
 
         if (damageDisplay != null)
         {
@@ -105,7 +112,15 @@ public sealed class DicePlayerProgress : MonoBehaviour
 
     private void RefreshUi()
     {
-        if (coinsText != null)
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi != null)
+        {
+            mobileUi.SetCoins(Coins);
+            mobileUi.RefreshUpgradeCostTexts();
+            mobileUi.SetUpgradeButtonInteractable(Coins >= CurrentUpgradeCost);
+        }
+
+        if (mobileUi == null && coinsText != null)
         {
             coinsText.text = Coins.ToString();
         }
@@ -113,16 +128,17 @@ public sealed class DicePlayerProgress : MonoBehaviour
         if (upgradeButton != null)
         {
             upgradeButton.interactable = Coins >= CurrentUpgradeCost;
-            var label = upgradeButton.GetComponentInChildren<TMP_Text>();
-            if (label != null)
-            {
-                label.text = GetUpgradeButtonText();
-            }
         }
     }
 
-    private string GetUpgradeButtonText()
+    private int GetCurrentUpgradeCost()
     {
-        return $"UPGRADE LEVEL {UpgradeLevel}\nCOST: {CurrentUpgradeCost}";
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi != null)
+        {
+            return mobileUi.DamageUpgradeCost;
+        }
+
+        return baseUpgradeCost + (((CurrentLevel - 1) / levelsPerUpgradeCostStep) * upgradeCostIncreasePerStep);
     }
 }

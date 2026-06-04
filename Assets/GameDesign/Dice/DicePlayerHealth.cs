@@ -58,16 +58,27 @@ public sealed class DicePlayerHealth : MonoBehaviour
         }
 
         healthText = mobileUi.HealthText;
+
+        if (healthFillImage == null)
+        {
+            healthFillImage = mobileUi.HealthFillImage;
+        }
     }
 
     private void RefreshUi()
     {
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi != null)
+        {
+            mobileUi.SetHealth(CurrentHealth, maxHealth);
+        }
+
         if (healthFillImage != null)
         {
             healthFillImage.fillAmount = maxHealth > 0 ? Mathf.Clamp01(CurrentHealth / maxHealth) : 0f;
         }
 
-        if (healthText != null)
+        if (mobileUi == null && healthText != null)
         {
             healthText.color = Color.white;
             healthText.text = $"{FormatNumber(CurrentHealth)}/{maxHealth}";

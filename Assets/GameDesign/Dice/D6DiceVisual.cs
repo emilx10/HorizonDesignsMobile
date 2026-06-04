@@ -8,6 +8,7 @@ public sealed class D6DiceVisual : MonoBehaviour
     [SerializeField, Min(0.01f)] private float pipDepth = 0.018f;
     [SerializeField, Min(0.05f)] private float spellIconSize = 0.42f;
     [SerializeField, Min(0f)] private float spellIconFaceOffset = 0.003f;
+    [SerializeField] private float spellIconRotationDegrees = -90f;
     [SerializeField] private Material bodyMaterial;
     [SerializeField] private Material pipMaterial;
     [SerializeField] private DiceSpellLoadout spellLoadout;
@@ -146,7 +147,8 @@ public sealed class D6DiceVisual : MonoBehaviour
         var iconObject = new GameObject($"Spell Face {value}", typeof(SpriteRenderer));
         iconObject.transform.SetParent(root, false);
         iconObject.transform.localPosition = normal * ((size * 0.5f) + spellIconFaceOffset);
-        iconObject.transform.localRotation = Quaternion.LookRotation(normal, upAxis);
+        iconObject.transform.localRotation = Quaternion.LookRotation(normal, upAxis)
+                                             * Quaternion.Euler(0f, 0f, spellIconRotationDegrees);
 
         var sprite = spell.Icon;
         var spriteSize = sprite.bounds.size;

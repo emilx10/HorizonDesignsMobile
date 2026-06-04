@@ -44,6 +44,16 @@ public sealed class DiceSpellDragItem : MonoBehaviour, IBeginDragHandler, IDragH
         RefreshIcon();
     }
 
+    public void Configure(DiceSpellDefinition spellDefinition, Image image, Canvas canvas, CanvasGroup group)
+    {
+        spell = spellDefinition;
+        iconImage = image != null ? image : iconImage;
+        dragCanvas = canvas != null ? canvas : dragCanvas;
+        canvasGroup = group != null ? group : canvasGroup;
+        rectTransform = transform as RectTransform;
+        RefreshIcon();
+    }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (spell == null || rectTransform == null)

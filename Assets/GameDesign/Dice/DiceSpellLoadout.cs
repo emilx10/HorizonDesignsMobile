@@ -97,14 +97,15 @@ public sealed class DiceSpellLoadout : MonoBehaviour
             return 0;
         }
 
-        var spellDamage = spell.CalculateDamage(diceDamage.DefaultDamage, pip);
+        var rawSpellDamage = spell.CalculateDamage(diceDamage.DefaultDamage, pip);
         var baseDiceDamage = diceDamage.DefaultDamage * pip;
-        var context = new DiceSpellCastContext(gameObject, target, diceDamage, pip, baseDiceDamage, spellDamage);
+        var context = new DiceSpellCastContext(gameObject, target, diceDamage, pip, baseDiceDamage, rawSpellDamage);
+        var resolvedSpellDamage = spell.ResolveCast(context);
 
         spell.OnCast(context);
-        SpellCast?.Invoke(pip, spell, spellDamage);
+        SpellCast?.Invoke(pip, spell, resolvedSpellDamage);
 
-        return spellDamage;
+        return resolvedSpellDamage;
     }
 
     private void EnsureSlots()

@@ -10,7 +10,25 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
     [SerializeField] private Image equippedIconImage;
     [SerializeField] private bool unequipOnTap = true;
 
+    private Sprite emptySlotSprite;
+    private Color emptySlotColor;
+
     public int Pip => pip;
+
+    public void Configure(int pipValue, DiceSpellLoadout spellLoadout, Image image)
+    {
+        pip = Mathf.Clamp(pipValue, 1, 6);
+        loadout = spellLoadout != null ? spellLoadout : loadout;
+        equippedIconImage = image != null ? image : equippedIconImage;
+
+        if (equippedIconImage != null && emptySlotSprite == null)
+        {
+            emptySlotSprite = equippedIconImage.sprite;
+            emptySlotColor = equippedIconImage.color;
+        }
+
+        Refresh();
+    }
 
     private void Awake()
     {
@@ -22,6 +40,12 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
         if (equippedIconImage == null)
         {
             equippedIconImage = GetComponent<Image>();
+        }
+
+        if (equippedIconImage != null)
+        {
+            emptySlotSprite = equippedIconImage.sprite;
+            emptySlotColor = equippedIconImage.color;
         }
 
         Refresh();
@@ -99,7 +123,8 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
         }
 
         var spell = loadout.GetSpellForPip(pip);
-        equippedIconImage.sprite = spell != null ? spell.Icon : null;
-        equippedIconImage.enabled = spell == null || spell.Icon != null;
+        equippedIconImage.sprite = spell != null && spell.Icon != null ? spell.Icon : emptySlotSprite;
+        equippedIconImage.color = spell != null && spell.Icon != null ? Color.white : emptySlotColor;
+        equippedIconImage.enabled = true;
     }
 }

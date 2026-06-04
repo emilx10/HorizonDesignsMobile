@@ -35,6 +35,12 @@ public sealed class DiceEnemyAI : MonoBehaviour
     public int CoinReward { get; private set; } = 1;
     public bool IsDefeated { get; private set; }
     public bool IsRolling { get; private set; }
+    public bool IsBurning => burnTurnsRemaining > 0;
+    public bool IsFrozen => frozenTurnsRemaining > 0;
+    public int BurnTurnsRemaining => burnTurnsRemaining;
+    public int BurnDamagePerTurn => burnDamagePerTurn;
+    public int FreezeStacks => freezeStacks;
+    public int FrozenTurnsRemaining => frozenTurnsRemaining;
     public float RespawnDelay => respawnDelay;
 
     private Renderer[] renderers;
@@ -42,6 +48,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
     private Coroutine respawnRoutine;
     private Coroutine rollRoutine;
     private Vector3 homePosition;
+    private int burnTurnsRemaining;
+    private int burnDamagePerTurn;
+    private int freezeStacks;
+    private int freezeThreshold = 10;
+    private int frozenTurnsRemaining;
 
     private void Awake()
     {
@@ -126,9 +137,75 @@ public sealed class DiceEnemyAI : MonoBehaviour
         return false;
     }
 
-    public void SpinThenAct(Action onComplete)
+    public void ApplyBurn(int damagePerTurn, int turns)
     {
         if (IsDefeated)
+        {
+            return;
+        }
+
+        burnDamagePerTurn = Mathf.Max(burnDamagePerTurn, Mathf.Max(1, damagePerTurn));
+        burnTurnsRemaining = Mathf.Max(1, turns);
+        RefreshUi();
+    }
+
+    public void ApplyFreezeStacks(int amount, int threshold, int frozenTurns)
+    {
+        if (IsDefeated || IsFrozen)
+        {
+            return;
+        }
+
+        freezeThreshold = Mathf.Max(1, threshold);
+        freezeStacks = Mathf.Min(freezeThreshold, freezeStacks + Mathf.Max(1, amount));
+
+        if (freezeStacks >= freezeThreshold)
+        {
+            freezeStacks = 0;
+            frozenTurnsRemaining = Mathf.Max(1, frozenTurns);
+        }
+
+        RefreshUi();
+    }
+
+    public bool AdvanceTurnStatuses(out bool skipAction)
+    {
+        skipAction = false;
+
+        if (IsDefeated)
+        {
+            return true;
+        }
+
+        if (burnTurnsRemaining > 0)
+        {
+            var defeatedByBurn = TakeDamage(burnDamagePerTurn);
+            burnTurnsRemaining = Mathf.Max(0, burnTurnsRemaining - 1);
+
+            if (burnTurnsRemaining == 0)
+            {
+                burnDamagePerTurn = 0;
+            }
+
+            if (defeatedByBurn || IsDefeated)
+            {
+                return true;
+            }
+        }
+
+        if (frozenTurnsRemaining > 0)
+        {
+            frozenTurnsRemaining = Mathf.Max(0, frozenTurnsRemaining - 1);
+            skipAction = true;
+        }
+
+        RefreshUi();
+        return false;
+    }
+
+    public void SpinThenAct(Action onComplete)
+    {
+        if (IsDefeated || IsFrozen)
         {
             return;
         }
@@ -152,6 +229,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
         CurrentHealth = maxHealth;
         CurrentValue = GetCameraFacingValue();
         IsDefeated = false;
+        ClearStatuses();
         SetVisible(true);
         RefreshUi();
     }
@@ -176,6 +254,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         CurrentHealth = maxHealth;
         IsDefeated = false;
+        ClearStatuses();
         SetVisible(true);
         RefreshUi();
         respawnRoutine = null;
@@ -270,8 +349,44 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         if (damageText != null)
         {
-            damageText.text = $"ENEMY DMG {FormatNumber(CurrentDamage)}";
+            var statusText = GetStatusText();
+            damageText.text = string.IsNullOrEmpty(statusText)
+                ? $"ENEMY DMG {FormatNumber(CurrentDamage)}"
+                : $"ENEMY DMG {FormatNumber(CurrentDamage)}\n{statusText}";
         }
+    }
+
+    private void ClearStatuses()
+    {
+        burnTurnsRemaining = 0;
+        burnDamagePerTurn = 0;
+        freezeStacks = 0;
+        frozenTurnsRemaining = 0;
+    }
+
+    private string GetStatusText()
+    {
+        var statusText = string.Empty;
+
+        if (burnTurnsRemaining > 0)
+        {
+            statusText = $"BURN {burnTurnsRemaining}";
+        }
+
+        if (frozenTurnsRemaining > 0)
+        {
+            return string.IsNullOrEmpty(statusText)
+                ? $"FROZEN {frozenTurnsRemaining}"
+                : $"{statusText}  FROZEN {frozenTurnsRemaining}";
+        }
+
+        if (freezeStacks > 0)
+        {
+            var freezeText = $"FREEZE {freezeStacks}/{freezeThreshold}";
+            return string.IsNullOrEmpty(statusText) ? freezeText : $"{statusText}  {freezeText}";
+        }
+
+        return statusText;
     }
 
     private Vector3 GetEulerShowingValueToCamera(int value)

@@ -137,6 +137,14 @@ public sealed class DiceBattleController : MonoBehaviour
         if (!enemyWasDefeated && !enemy.IsDefeated && playerHealth != null)
         {
             SetPlayerRollInput(false);
+
+            var defeatedByStatuses = enemy.AdvanceTurnStatuses(out var skipEnemyAction);
+            if (defeatedByStatuses || enemy.IsDefeated || skipEnemyAction)
+            {
+                SetPlayerRollInput(true);
+                return;
+            }
+
             enemy.SpinThenAct(ApplyEnemyDamage);
         }
     }

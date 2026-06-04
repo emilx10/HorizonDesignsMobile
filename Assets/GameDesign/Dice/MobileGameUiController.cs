@@ -86,6 +86,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     [SerializeField] private Button settingsButton;
     [SerializeField] private Button infoButton;
     [SerializeField] private Button backToGameplayButton;
+    [SerializeField] private Button[] backToGameplayButtons;
     [SerializeField] private Button settingsOkButton;
     [SerializeField] private Button equipSpellButton;
     [SerializeField] private Button closeInfoButton;
@@ -97,6 +98,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     [SerializeField] private GameObject spellsView;
     [SerializeField] private GameObject settingsView;
     [SerializeField] private GameObject infoView;
+    [SerializeField] private DiceSummonPopupController summonPopup;
 
     [Header("Behaviour")]
     [SerializeField] private bool showMainOnStart = true;
@@ -124,6 +126,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     public Button UpgradeDamageButton => upgradeDamageButton;
     public Button RetryLevelButton => retryLevelButton;
     public Button BackToGameplayButton => backToGameplayButton;
+    public Button[] BackToGameplayButtons => backToGameplayButtons;
     public Button SettingsOkButton => settingsOkButton;
     public Button EquipSpellButton => equipSpellButton;
     public Button CloseInfoButton => closeInfoButton;
@@ -376,10 +379,11 @@ public sealed class MobileGameUiController : MonoBehaviour
 
         listenersBound = true;
         AddListener(upgradeSectionButton, ShowUpgrade);
-        AddListener(summonsButton, ShowSpells);
+        AddListener(summonsButton, OpenSummons);
         AddListener(settingsButton, ShowSettings);
         AddListener(infoButton, ShowInfo);
         AddListener(backToGameplayButton, ShowMain);
+        AddListeners(backToGameplayButtons, ShowMain);
         AddListener(settingsOkButton, ShowMain);
         AddListener(closeInfoButton, ShowMain);
         AddListener(equipSpellButton, ToggleSpellEquipped);
@@ -394,10 +398,11 @@ public sealed class MobileGameUiController : MonoBehaviour
 
         listenersBound = false;
         RemoveListener(upgradeSectionButton, ShowUpgrade);
-        RemoveListener(summonsButton, ShowSpells);
+        RemoveListener(summonsButton, OpenSummons);
         RemoveListener(settingsButton, ShowSettings);
         RemoveListener(infoButton, ShowInfo);
         RemoveListener(backToGameplayButton, ShowMain);
+        RemoveListeners(backToGameplayButtons, ShowMain);
         RemoveListener(settingsOkButton, ShowMain);
         RemoveListener(closeInfoButton, ShowMain);
         RemoveListener(equipSpellButton, ToggleSpellEquipped);
@@ -415,6 +420,17 @@ public sealed class MobileGameUiController : MonoBehaviour
         settingsOkButtonText = GetTextIfMissing(settingsOkButtonText, settingsOkButton);
         closeInfoButtonText = GetTextIfMissing(closeInfoButtonText, closeInfoButton);
         retryLevelButtonText = GetTextIfMissing(retryLevelButtonText, retryLevelButton);
+    }
+
+    private void OpenSummons()
+    {
+        if (summonPopup != null)
+        {
+            summonPopup.Open();
+            return;
+        }
+
+        ShowSpells();
     }
 
     private void ConfigureCanvas()
@@ -658,11 +674,37 @@ public sealed class MobileGameUiController : MonoBehaviour
         }
     }
 
+    private static void AddListeners(Button[] buttons, UnityEngine.Events.UnityAction action)
+    {
+        if (buttons == null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < buttons.Length; i++)
+        {
+            AddListener(buttons[i], action);
+        }
+    }
+
     private static void RemoveListener(Button button, UnityEngine.Events.UnityAction action)
     {
         if (button != null)
         {
             button.onClick.RemoveListener(action);
+        }
+    }
+
+    private static void RemoveListeners(Button[] buttons, UnityEngine.Events.UnityAction action)
+    {
+        if (buttons == null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < buttons.Length; i++)
+        {
+            RemoveListener(buttons[i], action);
         }
     }
 

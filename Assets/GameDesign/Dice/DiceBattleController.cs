@@ -1,10 +1,7 @@
 using System.Collections;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
-#if ENABLE_INPUT_SYSTEM
-using UnityEngine.InputSystem.UI;
-#endif
+using TMPro;
 
 [DisallowMultipleComponent]
 [RequireComponent(typeof(D6DiceRoller))]
@@ -20,7 +17,7 @@ public sealed class DiceBattleController : MonoBehaviour
     [SerializeField] private DiceEnemyAI enemy;
     [SerializeField] private DiceEnemyAI enemyPrefab;
     [SerializeField] private Vector3 enemySpawnPosition = new(0f, 2.5f, 2.5f);
-    [SerializeField] private Text levelText;
+    [SerializeField] private TMP_Text levelText;
     [SerializeField] private Button retryLastLevelButton;
 
     private int currentLevel = 1;
@@ -54,7 +51,7 @@ public sealed class DiceBattleController : MonoBehaviour
         ConfigureEnemyForCurrentLevel();
         ConfigureCameraForMobile();
         SetPlayerRollInput(true);
-        CreateUiIfNeeded();
+        BindUiIfAvailable();
         RefreshLevelUi();
     }
 
@@ -249,77 +246,23 @@ public sealed class DiceBattleController : MonoBehaviour
         }
     }
 
-    private void CreateUiIfNeeded()
+    private void BindUiIfAvailable()
     {
-        EnsureEventSystem();
-
-        var uiRoot = MobileLayoutUtility.GetUiRoot();
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi == null)
+        {
+            return;
+        }
 
         if (levelText == null)
         {
-            var textObject = new GameObject("Level Text", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(uiRoot, false);
-
-            levelText = textObject.GetComponent<Text>();
-            levelText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            levelText.fontSize = 40;
-            levelText.fontStyle = FontStyle.Bold;
-            levelText.alignment = TextAnchor.UpperCenter;
-            levelText.color = Color.white;
-            levelText.raycastTarget = false;
-            MobileLayoutUtility.ConfigureText(levelText, 40, 24);
-
-            var rect = levelText.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-            rect.anchoredPosition = new Vector2(0f, -32f);
-            rect.sizeDelta = new Vector2(360f, 80f);
+            levelText = mobileUi.LevelText;
         }
 
         if (retryLastLevelButton == null)
         {
-            retryLastLevelButton = CreateButton(uiRoot, "Retry Last Level Button", "RETRY", new Vector2(-32f, -112f));
+            retryLastLevelButton = mobileUi.RetryLevelButton;
         }
-    }
-
-    private static Button CreateButton(Transform parent, string objectName, string labelText, Vector2 anchoredPosition)
-    {
-        var buttonObject = new GameObject(objectName, typeof(RectTransform), typeof(Image), typeof(Button));
-        buttonObject.transform.SetParent(parent, false);
-
-        var rect = buttonObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(1f, 0.5f);
-        rect.anchorMax = new Vector2(1f, 0.5f);
-        rect.pivot = new Vector2(1f, 0.5f);
-        rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = new Vector2(260f, 92f);
-
-        var image = buttonObject.GetComponent<Image>();
-        image.color = new Color(0.78f, 0.28f, 0.18f, 0.95f);
-
-        var button = buttonObject.GetComponent<Button>();
-
-        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
-        labelObject.transform.SetParent(buttonObject.transform, false);
-
-        var labelRect = labelObject.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = Vector2.zero;
-        labelRect.offsetMax = Vector2.zero;
-
-        var label = labelObject.GetComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.fontSize = 34;
-        label.fontStyle = FontStyle.Bold;
-        label.alignment = TextAnchor.MiddleCenter;
-        label.color = Color.white;
-        label.text = labelText;
-        label.raycastTarget = false;
-        MobileLayoutUtility.ConfigureText(label, 34, 20);
-
-        return button;
     }
 
     private void ConfigureCameraForMobile()
@@ -357,19 +300,4 @@ public sealed class DiceBattleController : MonoBehaviour
         }
     }
 
-    private static void EnsureEventSystem()
-    {
-        if (FindFirstObjectByType<EventSystem>() != null)
-        {
-            return;
-        }
-
-        var eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
-
-#if ENABLE_INPUT_SYSTEM
-        eventSystemObject.AddComponent<InputSystemUIInputModule>();
-#else
-        eventSystemObject.AddComponent<StandaloneInputModule>();
-#endif
-    }
 }

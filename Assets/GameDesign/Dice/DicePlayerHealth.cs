@@ -1,12 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System;
 
 [DisallowMultipleComponent]
 public sealed class DicePlayerHealth : MonoBehaviour
 {
     [SerializeField, Min(1)] private int maxHealth = 20;
-    [SerializeField] private Text healthText;
+    [SerializeField] private RectTransform healthBarRoot;
+    [SerializeField] private Vector3 healthBarWorldOffset = new(0f, -0.85f, 0f);
+    [SerializeField] private Image healthFillImage;
+    [SerializeField] private TMP_Text healthText;
 
     public event Action Defeated;
 
@@ -16,8 +20,13 @@ public sealed class DicePlayerHealth : MonoBehaviour
     private void Awake()
     {
         CurrentHealth = maxHealth;
-        CreateUiIfNeeded();
+        BindUiIfAvailable();
         RefreshUi();
+    }
+
+    private void LateUpdate()
+    {
+        RefreshBarPosition();
     }
 
     public bool TakeDamage(float amount)
@@ -40,40 +49,60 @@ public sealed class DicePlayerHealth : MonoBehaviour
         RefreshUi();
     }
 
-    private void CreateUiIfNeeded()
+    private void BindUiIfAvailable()
     {
-        if (healthText != null)
+        var mobileUi = MobileGameUiController.FindExisting();
+        if (mobileUi == null || healthText != null)
         {
             return;
         }
 
-        var uiRoot = MobileLayoutUtility.GetUiRoot();
-
-        var textObject = new GameObject("Player Health Text", typeof(RectTransform), typeof(Text));
-        textObject.transform.SetParent(uiRoot, false);
-
-        healthText = textObject.GetComponent<Text>();
-        healthText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        healthText.fontSize = 38;
-        healthText.fontStyle = FontStyle.Bold;
-        healthText.alignment = TextAnchor.MiddleLeft;
-        healthText.color = Color.green;
-        healthText.raycastTarget = false;
-        MobileLayoutUtility.ConfigureText(healthText, 38, 22);
-
-        var rect = healthText.rectTransform;
-        rect.anchorMin = new Vector2(0f, 1f);
-        rect.anchorMax = new Vector2(0f, 1f);
-        rect.pivot = new Vector2(0f, 1f);
-        rect.anchoredPosition = new Vector2(32f, -108f);
-        rect.sizeDelta = new Vector2(360f, 80f);
+        healthText = mobileUi.HealthText;
     }
 
     private void RefreshUi()
     {
+        if (healthFillImage != null)
+        {
+            healthFillImage.fillAmount = maxHealth > 0 ? Mathf.Clamp01(CurrentHealth / maxHealth) : 0f;
+        }
+
         if (healthText != null)
         {
-            healthText.text = $"HP {FormatNumber(CurrentHealth)}/{maxHealth}";
+            healthText.color = Color.white;
+            healthText.text = $"{FormatNumber(CurrentHealth)}/{maxHealth}";
+        }
+    }
+
+    private void RefreshBarPosition()
+    {
+        if (healthBarRoot == null)
+        {
+            return;
+        }
+
+        var canvas = healthBarRoot.GetComponentInParent<Canvas>();
+        var canvasRect = canvas != null ? canvas.transform as RectTransform : null;
+        var camera = Camera.main;
+
+        if (canvasRect == null || camera == null)
+        {
+            return;
+        }
+
+        var screenPosition = camera.WorldToScreenPoint(transform.position + healthBarWorldOffset);
+        if (screenPosition.z < 0f)
+        {
+            healthBarRoot.gameObject.SetActive(false);
+            return;
+        }
+
+        healthBarRoot.gameObject.SetActive(true);
+
+        var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPosition, uiCamera, out var localPoint))
+        {
+            healthBarRoot.anchoredPosition = localPoint;
         }
     }
 

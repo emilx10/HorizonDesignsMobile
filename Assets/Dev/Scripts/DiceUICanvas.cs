@@ -15,7 +15,7 @@ public class DiceUICanvas : MonoBehaviour
     private Canvas canvas;
     private CanvasScaler canvasScaler;
     private GraphicRaycaster graphicRaycaster;
-    
+
     private Button[] tabButtons;
     private RectTransform[] tabContents;
     private int currentActiveTab = 0;
@@ -84,7 +84,7 @@ public class DiceUICanvas : MonoBehaviour
         headerRect.anchorMax = new Vector2(1, 1);
         headerRect.offsetMin = new Vector2(0, -80);
         headerRect.offsetMax = Vector2.zero;
-        
+
         Image headerBg = headerObj.AddComponent<Image>();
         headerBg.color = new Color(0.5f, 0.2f, 0.3f); // Dark maroon
 
@@ -116,7 +116,6 @@ public class DiceUICanvas : MonoBehaviour
         HorizontalLayoutGroup tabLayout = tabContainer.AddComponent<HorizontalLayoutGroup>();
         tabLayout.childForceExpandWidth = true;
         tabLayout.childForceExpandHeight = true;
-        tabLayout.childControlSize = true;
         tabLayout.spacing = 5;
         tabLayout.padding = new RectOffset(5, 5, 5, 5);
 
@@ -128,7 +127,7 @@ public class DiceUICanvas : MonoBehaviour
         {
             GameObject tabButtonObj = new GameObject(tabNames[i] + "Tab");
             tabButtonObj.transform.SetParent(tabContainer.transform, false);
-            
+
             RectTransform tabBtnRect = tabButtonObj.AddComponent<RectTransform>();
             tabBtnRect.anchorMin = Vector2.zero;
             tabBtnRect.anchorMax = Vector2.one;
@@ -142,7 +141,7 @@ public class DiceUICanvas : MonoBehaviour
 
             Button tabBtn = tabButtonObj.AddComponent<Button>();
             tabButtons[i] = tabBtn;
-            
+
             int tabIndex = i; // Local copy for closure
             tabBtn.onClick.AddListener(() => SelectTab(tabIndex));
 
@@ -178,7 +177,9 @@ public class DiceUICanvas : MonoBehaviour
 
         // Create ScrollRect for content
         ScrollRect scrollRect = contentAreaObj.AddComponent<ScrollRect>();
-        
+        scrollRect.horizontal = false;
+        scrollRect.vertical = true;
+
         GameObject viewport = new GameObject("Viewport");
         viewport.transform.SetParent(contentAreaObj.transform, false);
         RectTransform viewportRect = viewport.AddComponent<RectTransform>();
@@ -197,15 +198,15 @@ public class DiceUICanvas : MonoBehaviour
 
         // Create 5 content panels for each tab
         tabContents = new RectTransform[5];
-        
+
         for (int i = 0; i < 5; i++)
         {
             GameObject contentPanel = new GameObject(tabNames[i] + "Content");
             contentPanel.transform.SetParent(viewport.transform, false);
-            
+
             RectTransform panelRect = contentPanel.AddComponent<RectTransform>();
             panelRect.anchorMin = Vector2.zero;
-            panelRect.anchorMax = Vector2.one;
+            panelRect.anchorMax = new Vector2(1, 0);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
 
@@ -213,16 +214,25 @@ public class DiceUICanvas : MonoBehaviour
             panelBg.color = new Color(0.7f, 0.7f, 0.7f);
 
             VerticalLayoutGroup panelLayout = contentPanel.AddComponent<VerticalLayoutGroup>();
-            panelLayout.childForceExpandHeight = true;
+            panelLayout.childForceExpandHeight = false;
             panelLayout.childForceExpandWidth = true;
-            panelLayout.childControlSize = true;
             panelLayout.padding = new RectOffset(10, 10, 10, 10);
+            panelLayout.spacing = 5;
+
+            LayoutElement panelLayoutElem = contentPanel.AddComponent<LayoutElement>();
+            panelLayoutElem.preferredHeight = 500;
 
             tabContents[i] = panelRect;
 
             // Add placeholder text
             GameObject placeholderObj = new GameObject("Placeholder");
             placeholderObj.transform.SetParent(contentPanel.transform, false);
+            RectTransform placeholderRect = placeholderObj.AddComponent<RectTransform>();
+            placeholderRect.anchorMin = Vector2.zero;
+            placeholderRect.anchorMax = Vector2.one;
+            placeholderRect.offsetMin = Vector2.zero;
+            placeholderRect.offsetMax = Vector2.zero;
+
             Text placeholder = placeholderObj.AddComponent<Text>();
             placeholder.text = $"{tabNames[i]} Section Content";
             placeholder.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
@@ -230,6 +240,9 @@ public class DiceUICanvas : MonoBehaviour
             placeholder.fontStyle = FontStyle.Bold;
             placeholder.alignment = TextAnchor.MiddleCenter;
             placeholder.color = Color.black;
+
+            LayoutElement placeholderLayout = placeholderObj.AddComponent<LayoutElement>();
+            placeholderLayout.preferredHeight = 200;
         }
 
         scrollRect.content = tabContents[0];
@@ -249,7 +262,6 @@ public class DiceUICanvas : MonoBehaviour
         HorizontalLayoutGroup bottomLayout = bottomAreaObj.AddComponent<HorizontalLayoutGroup>();
         bottomLayout.childForceExpandWidth = true;
         bottomLayout.childForceExpandHeight = true;
-        bottomLayout.childControlSize = true;
         bottomLayout.spacing = 10;
         bottomLayout.padding = new RectOffset(10, 10, 10, 10);
 
@@ -315,7 +327,7 @@ public class DiceUICanvas : MonoBehaviour
         // Activate selected tab
         tabContents[tabIndex].gameObject.SetActive(true);
         tabButtons[tabIndex].GetComponent<Image>().color = activeTabColor;
-        
+
         currentActiveTab = tabIndex;
 
         Debug.Log($"Selected tab: {tabIndex}");

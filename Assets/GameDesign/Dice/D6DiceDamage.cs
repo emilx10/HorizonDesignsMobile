@@ -12,6 +12,8 @@ public sealed class D6DiceDamage : MonoBehaviour
     public int DefaultDamage => defaultDamage;
     public int DiceValue => GetFrontFacingValue();
     public int DiceDamage => DiceValue * defaultDamage;
+    public int TopFaceValue => diceRoller != null ? Mathf.Clamp(diceRoller.CurrentValue, 1, 6) : 1;
+    public int TopFaceDamage => TopFaceValue * defaultDamage;
 
     private void Awake()
     {

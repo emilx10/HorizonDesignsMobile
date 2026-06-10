@@ -79,7 +79,7 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
             return;
         }
 
-        damageText.text = $"{labelPrefix} {damageSource.DiceDamage}";
+        damageText.text = $"{labelPrefix} {damageSource.TopFaceDamage}";
     }
 
     private void HandleRollFinished(int _)

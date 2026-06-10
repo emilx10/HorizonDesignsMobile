@@ -18,7 +18,14 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
     public void Configure(int pipValue, DiceSpellLoadout spellLoadout, Image image)
     {
         pip = Mathf.Clamp(pipValue, 1, 6);
-        loadout = spellLoadout != null ? spellLoadout : loadout;
+
+        if (spellLoadout != null && loadout != spellLoadout)
+        {
+            UnsubscribeLoadout();
+            loadout = spellLoadout;
+            SubscribeLoadout();
+        }
+
         equippedIconImage = image != null ? image : equippedIconImage;
 
         if (equippedIconImage != null && emptySlotSprite == null)
@@ -34,7 +41,7 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
     {
         if (loadout == null)
         {
-            loadout = FindFirstObjectByType<DiceSpellLoadout>();
+            loadout = FindPlayerSpellLoadout();
         }
 
         if (equippedIconImage == null)
@@ -53,22 +60,14 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
 
     private void OnEnable()
     {
-        if (loadout != null)
-        {
-            loadout.SpellEquipped += HandleSpellEquipped;
-            loadout.SpellUnequipped += HandleSpellUnequipped;
-        }
+        SubscribeLoadout();
 
         Refresh();
     }
 
     private void OnDisable()
     {
-        if (loadout != null)
-        {
-            loadout.SpellEquipped -= HandleSpellEquipped;
-            loadout.SpellUnequipped -= HandleSpellUnequipped;
-        }
+        UnsubscribeLoadout();
     }
 
     public void OnDrop(PointerEventData eventData)
@@ -126,5 +125,46 @@ public sealed class DicePipSpellDropTarget : MonoBehaviour, IDropHandler, IPoint
         equippedIconImage.sprite = spell != null && spell.Icon != null ? spell.Icon : emptySlotSprite;
         equippedIconImage.color = spell != null && spell.Icon != null ? Color.white : emptySlotColor;
         equippedIconImage.enabled = true;
+    }
+
+    private void SubscribeLoadout()
+    {
+        if (loadout == null)
+        {
+            return;
+        }
+
+        loadout.SpellEquipped -= HandleSpellEquipped;
+        loadout.SpellUnequipped -= HandleSpellUnequipped;
+        loadout.SpellEquipped += HandleSpellEquipped;
+        loadout.SpellUnequipped += HandleSpellUnequipped;
+    }
+
+    private void UnsubscribeLoadout()
+    {
+        if (loadout == null)
+        {
+            return;
+        }
+
+        loadout.SpellEquipped -= HandleSpellEquipped;
+        loadout.SpellUnequipped -= HandleSpellUnequipped;
+    }
+
+    private static DiceSpellLoadout FindPlayerSpellLoadout()
+    {
+        var battleController = FindFirstObjectByType<DiceBattleController>();
+        if (battleController != null && battleController.TryGetComponent(out DiceSpellLoadout playerLoadout))
+        {
+            return playerLoadout;
+        }
+
+        var diceDamage = FindFirstObjectByType<D6DiceDamage>();
+        if (diceDamage != null && diceDamage.TryGetComponent(out playerLoadout))
+        {
+            return playerLoadout;
+        }
+
+        return FindFirstObjectByType<DiceSpellLoadout>();
     }
 }

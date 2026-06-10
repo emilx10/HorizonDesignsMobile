@@ -14,16 +14,19 @@ public sealed class DiceEnemyAI : MonoBehaviour
     [SerializeField, Min(1)] private int baseCoinReward = 1;
     [SerializeField, Min(1)] private int levelsPerCoinRewardStep = 5;
     [SerializeField, Min(0f)] private float respawnDelay = 1.25f;
+    [SerializeField] private bool autoRespawn = true;
     [SerializeField, Min(0.2f)] private float rollDuration = 0.8f;
     [SerializeField, Min(1)] private int extraSpinTurns = 2;
     [SerializeField, Min(0f)] private float swingHeight = 0.25f;
     [SerializeField] private Camera targetCamera;
     [SerializeField] private Text healthText;
     [SerializeField] private Text damageText;
+    [SerializeField] private Text burnIndicatorText;
     [SerializeField] private Image healthBarFill;
     [SerializeField] private Vector3 healthTextOffset = new(0f, 0.85f, 0f);
     [SerializeField] private Vector3 healthBarOffset = new(0f, 0.68f, 0f);
     [SerializeField] private Vector3 damageTextOffset = new(0f, -0.85f, 0f);
+    [SerializeField] private Vector3 burnIndicatorOffset = new(0.55f, 0.85f, 0f);
 
     public event Action<DiceEnemyAI, int> Defeated;
 
@@ -76,6 +79,13 @@ public sealed class DiceEnemyAI : MonoBehaviour
             damageText = CreateText("Enemy Damage Text", 34, Color.red);
         }
 
+        if (burnIndicatorText == null)
+        {
+            burnIndicatorText = CreateText("Enemy Burn Indicator", 24, new Color(1f, 0.42f, 0.02f, 1f));
+            burnIndicatorText.text = "BURN";
+            burnIndicatorText.rectTransform.sizeDelta = new Vector2(110f, 42f);
+        }
+
         if (healthBarFill == null)
         {
             healthBarFill = CreateHealthBar();
@@ -114,6 +124,13 @@ public sealed class DiceEnemyAI : MonoBehaviour
         {
             var rectTransform = damageText.rectTransform;
             var screenPosition = targetCamera.WorldToScreenPoint(transform.position + damageTextOffset);
+            rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
+        }
+
+        if (burnIndicatorText != null)
+        {
+            var rectTransform = burnIndicatorText.rectTransform;
+            var screenPosition = targetCamera.WorldToScreenPoint(transform.position + burnIndicatorOffset);
             rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
         }
     }
@@ -234,10 +251,36 @@ public sealed class DiceEnemyAI : MonoBehaviour
         RefreshUi();
     }
 
+    public void SetAutoRespawn(bool enabled)
+    {
+        autoRespawn = enabled;
+    }
+
+    public void SetBattleVisible(bool visible)
+    {
+        SetVisible(visible);
+    }
+
+    public void RecreateRuntimeUi()
+    {
+        healthText = CreateText("Enemy Health Text", 34, Color.red);
+        damageText = CreateText("Enemy Damage Text", 34, Color.red);
+        burnIndicatorText = CreateText("Enemy Burn Indicator", 24, new Color(1f, 0.42f, 0.02f, 1f));
+        burnIndicatorText.rectTransform.sizeDelta = new Vector2(110f, 42f);
+        healthBarFill = CreateHealthBar();
+        RefreshUi();
+    }
+
     private void Defeat()
     {
         IsDefeated = true;
         Defeated?.Invoke(this, CoinReward);
+
+        if (!autoRespawn)
+        {
+            SetVisible(false);
+            return;
+        }
 
         if (respawnRoutine != null)
         {
@@ -327,6 +370,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
             damageText.enabled = visible;
         }
 
+        if (burnIndicatorText != null)
+        {
+            burnIndicatorText.enabled = visible && IsBurning;
+        }
+
         if (healthBarFill != null)
         {
             healthBarFill.transform.parent.gameObject.SetActive(visible);
@@ -353,6 +401,12 @@ public sealed class DiceEnemyAI : MonoBehaviour
             damageText.text = string.IsNullOrEmpty(statusText)
                 ? $"ENEMY DMG {FormatNumber(CurrentDamage)}"
                 : $"ENEMY DMG {FormatNumber(CurrentDamage)}\n{statusText}";
+        }
+
+        if (burnIndicatorText != null)
+        {
+            burnIndicatorText.enabled = !IsDefeated && IsBurning;
+            burnIndicatorText.text = $"BURN {burnTurnsRemaining}";
         }
     }
 

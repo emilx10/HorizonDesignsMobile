@@ -38,7 +38,7 @@ public sealed class DiceSpellUiAutoBinder : MonoBehaviour
     {
         if (loadout == null)
         {
-            loadout = FindFirstObjectByType<DiceSpellLoadout>();
+            loadout = FindPlayerSpellLoadout();
         }
 
         if (dragCanvas == null)
@@ -160,5 +160,22 @@ public sealed class DiceSpellUiAutoBinder : MonoBehaviour
         }
 
         return null;
+    }
+
+    private static DiceSpellLoadout FindPlayerSpellLoadout()
+    {
+        var battleController = FindFirstObjectByType<DiceBattleController>();
+        if (battleController != null && battleController.TryGetComponent(out DiceSpellLoadout playerLoadout))
+        {
+            return playerLoadout;
+        }
+
+        var diceDamage = FindFirstObjectByType<D6DiceDamage>();
+        if (diceDamage != null && diceDamage.TryGetComponent(out playerLoadout))
+        {
+            return playerLoadout;
+        }
+
+        return FindFirstObjectByType<DiceSpellLoadout>();
     }
 }

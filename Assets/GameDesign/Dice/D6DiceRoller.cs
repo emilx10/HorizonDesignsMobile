@@ -1,6 +1,8 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
@@ -28,6 +30,7 @@ public sealed class D6DiceRoller : MonoBehaviour
 
     private Coroutine activeRoll;
     private Vector3 homePosition;
+    private readonly List<RaycastResult> uiRaycastResults = new();
 
     private static readonly Vector3[] NumberEulerAngles =
     {
@@ -137,6 +140,11 @@ public sealed class D6DiceRoller : MonoBehaviour
 
     private void TryRollAt(Vector2 screenPosition)
     {
+        if (IsScreenPositionOverUi(screenPosition))
+        {
+            return;
+        }
+
         if (targetCamera == null)
         {
             targetCamera = Camera.main;
@@ -153,6 +161,23 @@ public sealed class D6DiceRoller : MonoBehaviour
         {
             Roll();
         }
+    }
+
+    private bool IsScreenPositionOverUi(Vector2 screenPosition)
+    {
+        if (EventSystem.current == null)
+        {
+            return false;
+        }
+
+        var eventData = new PointerEventData(EventSystem.current)
+        {
+            position = screenPosition
+        };
+
+        uiRaycastResults.Clear();
+        EventSystem.current.RaycastAll(eventData, uiRaycastResults);
+        return uiRaycastResults.Count > 0;
     }
 
     private IEnumerator RollRoutine(int targetValue)

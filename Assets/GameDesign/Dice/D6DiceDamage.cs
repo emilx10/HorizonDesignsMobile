@@ -37,6 +37,11 @@ public sealed class D6DiceDamage : MonoBehaviour
 
     private int GetFrontFacingValue()
     {
+        if (diceRoller != null && TryGetComponent(out D6DiceVisual diceVisual) && diceVisual.UsesFlatSpriteBody)
+        {
+            return Mathf.Clamp(diceRoller.FrontValue, 1, 6);
+        }
+
         if (targetCamera == null)
         {
             targetCamera = Camera.main;

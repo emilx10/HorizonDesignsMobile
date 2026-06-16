@@ -21,12 +21,11 @@ public sealed class DiceEnemyAI : MonoBehaviour
     [SerializeField] private Camera targetCamera;
     [SerializeField] private Text healthText;
     [SerializeField] private Text damageText;
-    [SerializeField] private Text burnIndicatorText;
+    [SerializeField] private Image burnIndicatorIcon;
     [SerializeField] private Image healthBarFill;
-    [SerializeField] private Vector3 healthTextOffset = new(0f, 0.85f, 0f);
-    [SerializeField] private Vector3 healthBarOffset = new(0f, 0.68f, 0f);
-    [SerializeField] private Vector3 damageTextOffset = new(0f, -0.85f, 0f);
-    [SerializeField] private Vector3 burnIndicatorOffset = new(0.55f, 0.85f, 0f);
+    [SerializeField] private Vector3 healthTextOffset = new(0f, 0.92f, 0f);
+    [SerializeField] private Vector3 healthBarOffset = new(0f, 0.76f, 0f);
+    [SerializeField] private Vector3 damageTextOffset = new(0f, -0.95f, 0f);
 
     public event Action<DiceEnemyAI, int> Defeated;
 
@@ -51,16 +50,22 @@ public sealed class DiceEnemyAI : MonoBehaviour
     private Coroutine respawnRoutine;
     private Coroutine rollRoutine;
     private Vector3 homePosition;
+    private Vector3 homeScale;
+    private Quaternion homeRotation;
     private int burnTurnsRemaining;
     private int burnDamagePerTurn;
     private int freezeStacks;
     private int freezeThreshold = 10;
     private int frozenTurnsRemaining;
+    private D6DiceVisual diceVisual;
 
     private void Awake()
     {
         CurrentHealth = maxHealth;
         homePosition = transform.position;
+        homeScale = transform.localScale;
+        homeRotation = transform.rotation;
+        diceVisual = GetComponent<D6DiceVisual>();
         renderers = GetComponentsInChildren<Renderer>(true);
         colliders = GetComponentsInChildren<Collider>(true);
 
@@ -71,24 +76,28 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         if (healthText == null)
         {
-            healthText = CreateText("Enemy Health Text", 34, Color.red);
+            healthText = CreateText("Enemy Health Text", 24, Color.red);
         }
 
         if (damageText == null)
         {
-            damageText = CreateText("Enemy Damage Text", 34, Color.red);
-        }
-
-        if (burnIndicatorText == null)
-        {
-            burnIndicatorText = CreateText("Enemy Burn Indicator", 24, new Color(1f, 0.42f, 0.02f, 1f));
-            burnIndicatorText.text = "BURN";
-            burnIndicatorText.rectTransform.sizeDelta = new Vector2(110f, 42f);
+            damageText = CreateText("Enemy Damage Text", 24, Color.red);
         }
 
         if (healthBarFill == null)
         {
             healthBarFill = CreateHealthBar();
+        }
+
+        if (burnIndicatorIcon == null && healthBarFill != null)
+        {
+            burnIndicatorIcon = CreateBurnIcon(healthBarFill.transform.parent);
+        }
+
+        if (diceVisual != null && diceVisual.UsesFlatSpriteBody)
+        {
+            CurrentValue = UnityEngine.Random.Range(1, 7);
+            diceVisual.SetVisiblePips(GetRandomAdjacentValue(CurrentValue), CurrentValue);
         }
 
         RefreshUi();
@@ -127,12 +136,6 @@ public sealed class DiceEnemyAI : MonoBehaviour
             rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
         }
 
-        if (burnIndicatorText != null)
-        {
-            var rectTransform = burnIndicatorText.rectTransform;
-            var screenPosition = targetCamera.WorldToScreenPoint(transform.position + burnIndicatorOffset);
-            rectTransform.position = MobileLayoutUtility.ClampToScreen(screenPosition, rectTransform.sizeDelta);
-        }
     }
 
     public bool TakeDamage(int amount)
@@ -161,7 +164,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
             return;
         }
 
-        burnDamagePerTurn = Mathf.Max(burnDamagePerTurn, Mathf.Max(1, damagePerTurn));
+        burnDamagePerTurn = 1;
         burnTurnsRemaining = Mathf.Max(1, turns);
         RefreshUi();
     }
@@ -243,10 +246,15 @@ public sealed class DiceEnemyAI : MonoBehaviour
         CoinReward = baseCoinReward * (int)Mathf.Pow(2, (level - 1) / levelsPerCoinRewardStep);
 
         homePosition = transform.position;
+        homeScale = transform.localScale;
+        homeRotation = transform.rotation;
         CurrentHealth = maxHealth;
-        CurrentValue = GetCameraFacingValue();
+        CurrentValue = diceVisual != null && diceVisual.UsesFlatSpriteBody
+            ? UnityEngine.Random.Range(1, 7)
+            : GetCameraFacingValue();
         IsDefeated = false;
         ClearStatuses();
+        RefreshDiceVisual();
         SetVisible(true);
         RefreshUi();
     }
@@ -263,11 +271,10 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
     public void RecreateRuntimeUi()
     {
-        healthText = CreateText("Enemy Health Text", 34, Color.red);
-        damageText = CreateText("Enemy Damage Text", 34, Color.red);
-        burnIndicatorText = CreateText("Enemy Burn Indicator", 24, new Color(1f, 0.42f, 0.02f, 1f));
-        burnIndicatorText.rectTransform.sizeDelta = new Vector2(110f, 42f);
+        healthText = CreateText("Enemy Health Text", 24, Color.red);
+        damageText = CreateText("Enemy Damage Text", 24, Color.red);
         healthBarFill = CreateHealthBar();
+        burnIndicatorIcon = CreateBurnIcon(healthBarFill.transform.parent);
         RefreshUi();
     }
 
@@ -307,6 +314,12 @@ public sealed class DiceEnemyAI : MonoBehaviour
     {
         IsRolling = true;
 
+        if (diceVisual != null && diceVisual.UsesFlatSpriteBody)
+        {
+            yield return FlatSpinRoutine(onComplete);
+            yield break;
+        }
+
         var startPosition = transform.position;
         var startEuler = transform.eulerAngles;
         CurrentValue = UnityEngine.Random.Range(1, 7);
@@ -345,6 +358,42 @@ public sealed class DiceEnemyAI : MonoBehaviour
         }
     }
 
+    private IEnumerator FlatSpinRoutine(Action onComplete)
+    {
+        var startPosition = transform.position;
+        var startScale = transform.localScale;
+        var time = 0f;
+
+        while (time < rollDuration)
+        {
+            time += Time.deltaTime;
+            var t = Mathf.Clamp01(time / rollDuration);
+            var eased = Mathf.SmoothStep(0f, 1f, t);
+            var wobble = Mathf.Sin(t * Mathf.PI * Mathf.Max(1, extraSpinTurns) * 2f);
+
+            transform.position = Vector3.Lerp(startPosition, homePosition, eased)
+                                 + Vector3.up * (Mathf.Sin(t * Mathf.PI) * swingHeight);
+            transform.localScale = startScale * (1f + (Mathf.Sin(t * Mathf.PI) * 0.1f));
+            transform.rotation = homeRotation * Quaternion.Euler(0f, 0f, wobble * 12f);
+
+            yield return null;
+        }
+
+        CurrentValue = UnityEngine.Random.Range(1, 7);
+        transform.position = homePosition;
+        transform.localScale = homeScale;
+        transform.rotation = homeRotation;
+        RefreshDiceVisual();
+        RefreshUi();
+        IsRolling = false;
+        rollRoutine = null;
+
+        if (!IsDefeated)
+        {
+            onComplete?.Invoke();
+        }
+    }
+
     private void SetVisible(bool visible)
     {
         renderers = GetComponentsInChildren<Renderer>(true);
@@ -352,7 +401,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
 
         foreach (var enemyRenderer in renderers)
         {
-            enemyRenderer.enabled = visible;
+            enemyRenderer.enabled = visible && (diceVisual == null || !diceVisual.ShouldRendererStayHidden(enemyRenderer));
         }
 
         foreach (var enemyCollider in colliders)
@@ -370,9 +419,9 @@ public sealed class DiceEnemyAI : MonoBehaviour
             damageText.enabled = visible;
         }
 
-        if (burnIndicatorText != null)
+        if (burnIndicatorIcon != null)
         {
-            burnIndicatorText.enabled = visible && IsBurning;
+            burnIndicatorIcon.enabled = visible && IsBurning;
         }
 
         if (healthBarFill != null)
@@ -403,11 +452,54 @@ public sealed class DiceEnemyAI : MonoBehaviour
                 : $"ENEMY DMG {FormatNumber(CurrentDamage)}\n{statusText}";
         }
 
-        if (burnIndicatorText != null)
+        if (burnIndicatorIcon != null)
         {
-            burnIndicatorText.enabled = !IsDefeated && IsBurning;
-            burnIndicatorText.text = $"BURN {burnTurnsRemaining}";
+            burnIndicatorIcon.enabled = !IsDefeated && IsBurning;
         }
+    }
+
+    private void RefreshDiceVisual()
+    {
+        if (diceVisual != null && diceVisual.UsesFlatSpriteBody)
+        {
+            diceVisual.SetVisiblePips(GetRandomAdjacentValue(CurrentValue), CurrentValue);
+        }
+    }
+
+    private static int GetRandomAdjacentValue(int value)
+    {
+        value = Mathf.Clamp(value, 1, 6);
+        var opposite = GetOppositeValue(value);
+        var choice = UnityEngine.Random.Range(1, 5);
+
+        for (var candidate = 1; candidate <= 6; candidate++)
+        {
+            if (candidate == value || candidate == opposite)
+            {
+                continue;
+            }
+
+            choice--;
+            if (choice == 0)
+            {
+                return candidate;
+            }
+        }
+
+        return value == 1 ? 2 : 1;
+    }
+
+    private static int GetOppositeValue(int value)
+    {
+        return Mathf.Clamp(value, 1, 6) switch
+        {
+            1 => 6,
+            2 => 5,
+            3 => 4,
+            4 => 3,
+            5 => 2,
+            _ => 1
+        };
     }
 
     private void ClearStatuses()
@@ -421,11 +513,6 @@ public sealed class DiceEnemyAI : MonoBehaviour
     private string GetStatusText()
     {
         var statusText = string.Empty;
-
-        if (burnTurnsRemaining > 0)
-        {
-            statusText = $"BURN {burnTurnsRemaining}";
-        }
 
         if (frozenTurnsRemaining > 0)
         {
@@ -551,7 +638,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
         text.alignment = TextAnchor.MiddleCenter;
         text.color = color;
         text.raycastTarget = false;
-        text.rectTransform.sizeDelta = new Vector2(360f, 72f);
+        text.rectTransform.sizeDelta = new Vector2(170f, 46f);
         MobileLayoutUtility.ConfigureText(text, fontSize, 18);
 
         return text;
@@ -565,7 +652,7 @@ public sealed class DiceEnemyAI : MonoBehaviour
         root.transform.SetParent(uiRoot, false);
 
         var rootRect = root.GetComponent<RectTransform>();
-        rootRect.sizeDelta = new Vector2(260f, 24f);
+        rootRect.sizeDelta = new Vector2(150f, 18f);
 
         var background = root.GetComponent<Image>();
         background.color = new Color(0.12f, 0.04f, 0.04f, 0.9f);
@@ -585,5 +672,26 @@ public sealed class DiceEnemyAI : MonoBehaviour
         fill.raycastTarget = false;
 
         return fill;
+    }
+
+    private static Image CreateBurnIcon(Transform healthBarRoot)
+    {
+        var iconObject = new GameObject("Enemy Burn Icon", typeof(RectTransform), typeof(Image));
+        iconObject.transform.SetParent(healthBarRoot, false);
+
+        var rectTransform = iconObject.GetComponent<RectTransform>();
+        rectTransform.anchorMin = new Vector2(1f, 0.5f);
+        rectTransform.anchorMax = new Vector2(1f, 0.5f);
+        rectTransform.pivot = new Vector2(0f, 0.5f);
+        rectTransform.anchoredPosition = new Vector2(8f, 0f);
+        rectTransform.sizeDelta = new Vector2(24f, 24f);
+
+        var icon = iconObject.GetComponent<Image>();
+        icon.sprite = Resources.Load<Sprite>("MobileUI/Spells/Fire ball");
+        icon.color = icon.sprite != null ? Color.white : new Color(1f, 0.28f, 0.02f, 1f);
+        icon.raycastTarget = false;
+        icon.enabled = false;
+
+        return icon;
     }
 }

@@ -23,13 +23,18 @@ public sealed class D6DiceRoller : MonoBehaviour
     [SerializeField] private AnimationCurve rollEase = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     public event Action<int> RollFinished;
+    public event Action<int> ValueChanged;
 
     public int CurrentValue { get; private set; } = 1;
+    public int FrontValue { get; private set; } = 1;
     public bool IsRolling { get; private set; }
     public bool InputEnabled => inputEnabled;
 
     private Coroutine activeRoll;
     private Vector3 homePosition;
+    private Vector3 homeScale;
+    private Quaternion homeRotation;
+    private D6DiceVisual diceVisual;
     private readonly List<RaycastResult> uiRaycastResults = new();
 
     private static readonly Vector3[] NumberEulerAngles =
@@ -45,10 +50,21 @@ public sealed class D6DiceRoller : MonoBehaviour
     private void Awake()
     {
         homePosition = transform.position;
+        homeScale = transform.localScale;
+        homeRotation = transform.rotation;
+        diceVisual = GetComponent<D6DiceVisual>();
 
         if (targetCamera == null)
         {
             targetCamera = Camera.main;
+        }
+
+        if (diceVisual != null && diceVisual.UsesFlatSpriteBody)
+        {
+            CurrentValue = UnityEngine.Random.Range(1, 7);
+            FrontValue = GetRandomAdjacentValue(CurrentValue);
+            diceVisual.SetVisiblePips(CurrentValue, FrontValue);
+            ValueChanged?.Invoke(CurrentValue);
         }
     }
 
@@ -184,6 +200,12 @@ public sealed class D6DiceRoller : MonoBehaviour
     {
         IsRolling = true;
 
+        if (diceVisual != null && diceVisual.UsesFlatSpriteBody)
+        {
+            yield return FlatRollRoutine(targetValue);
+            yield break;
+        }
+
         var startEuler = transform.eulerAngles;
         var targetEuler = NumberEulerAngles[targetValue - 1];
         targetEuler.y = GetFinalYaw(targetValue);
@@ -213,6 +235,41 @@ public sealed class D6DiceRoller : MonoBehaviour
         transform.position = homePosition;
         transform.rotation = Quaternion.Euler(targetEuler);
         CurrentValue = targetValue;
+        FrontValue = GetFrontFacingValue(CurrentValue);
+        ValueChanged?.Invoke(CurrentValue);
+        IsRolling = false;
+        activeRoll = null;
+        RollFinished?.Invoke(CurrentValue);
+    }
+
+    private IEnumerator FlatRollRoutine(int targetTopValue)
+    {
+        var startPosition = transform.position;
+        var startScale = transform.localScale;
+        var time = 0f;
+
+        while (time < rollDuration)
+        {
+            time += Time.deltaTime;
+            var t = Mathf.Clamp01(time / rollDuration);
+            var eased = rollEase.Evaluate(t);
+            var wobble = Mathf.Sin(t * Mathf.PI * Mathf.Max(1, extraSpinTurns) * 2f);
+
+            transform.position = Vector3.Lerp(startPosition, homePosition, eased)
+                                 + Vector3.up * (Mathf.Sin(t * Mathf.PI) * swingHeight);
+            transform.localScale = startScale * (1f + (Mathf.Sin(t * Mathf.PI) * 0.12f));
+            transform.rotation = homeRotation * Quaternion.Euler(0f, 0f, wobble * 14f);
+
+            yield return null;
+        }
+
+        CurrentValue = Mathf.Clamp(targetTopValue, 1, 6);
+        FrontValue = GetRandomAdjacentValue(CurrentValue);
+        transform.position = homePosition;
+        transform.localScale = homeScale;
+        transform.rotation = homeRotation;
+        diceVisual.SetVisiblePips(CurrentValue, FrontValue);
+        ValueChanged?.Invoke(CurrentValue);
         IsRolling = false;
         activeRoll = null;
         RollFinished?.Invoke(CurrentValue);
@@ -268,5 +325,79 @@ public sealed class D6DiceRoller : MonoBehaviour
         }
 
         return UnityEngine.Random.Range(0, 4) * 90f;
+    }
+
+    private static int GetRandomAdjacentValue(int value)
+    {
+        value = Mathf.Clamp(value, 1, 6);
+        var opposite = GetOppositeValue(value);
+        var choice = UnityEngine.Random.Range(1, 5);
+
+        for (var candidate = 1; candidate <= 6; candidate++)
+        {
+            if (candidate == value || candidate == opposite)
+            {
+                continue;
+            }
+
+            choice--;
+            if (choice == 0)
+            {
+                return candidate;
+            }
+        }
+
+        return value == 1 ? 2 : 1;
+    }
+
+    private static int GetOppositeValue(int value)
+    {
+        return Mathf.Clamp(value, 1, 6) switch
+        {
+            1 => 6,
+            2 => 5,
+            3 => 4,
+            4 => 3,
+            5 => 2,
+            _ => 1
+        };
+    }
+
+    private int GetFrontFacingValue(int fallback)
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = Camera.main;
+        }
+
+        if (targetCamera == null)
+        {
+            return fallback;
+        }
+
+        var directionToCamera = (targetCamera.transform.position - transform.position).normalized;
+        var bestValue = fallback;
+        var bestDot = float.NegativeInfinity;
+
+        CheckFace(Vector3.up, 1, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.down, 6, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.forward, 2, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.back, 5, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.right, 3, directionToCamera, ref bestValue, ref bestDot);
+        CheckFace(Vector3.left, 4, directionToCamera, ref bestValue, ref bestDot);
+
+        return bestValue;
+    }
+
+    private void CheckFace(Vector3 localNormal, int value, Vector3 directionToCamera, ref int bestValue, ref float bestDot)
+    {
+        var worldNormal = transform.TransformDirection(localNormal);
+        var dot = Vector3.Dot(worldNormal, directionToCamera);
+
+        if (dot > bestDot)
+        {
+            bestDot = dot;
+            bestValue = value;
+        }
     }
 }

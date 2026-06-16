@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 11400004}
   - component: {fileID: 11400005}
   - component: {fileID: 11400006}
+  - component: {fileID: 4179825836278914701}
   m_Layer: 0
   m_Name: D6Dice
   m_TagString: Untagged
@@ -56,7 +57,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 100000}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -66,6 +67,11 @@ MeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -87,9 +93,12 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!65 &6500000
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -109,7 +118,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 1.35, y: 1.35, z: 1.35}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &11400000
 MonoBehaviour:
@@ -127,6 +136,7 @@ MonoBehaviour:
   hittableLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  inputEnabled: 1
   rollDuration: 1.15
   swingHeight: 0.45
   extraSpinTurns: 3
@@ -169,8 +179,32 @@ MonoBehaviour:
   size: 1
   pipRadius: 0.075
   pipDepth: 0.018
+  bodySprite: {fileID: 21300000, guid: 411cb364fc63e0944940b0f170e6473f, type: 3}
+  bodySpriteSize: 1.35
+  shadowSprite: {fileID: 21300000, guid: 484376839542dd9458ec416cf0b0916f, type: 3}
+  shadowOffset: {x: 0, y: -0.47}
+  shadowScale: {x: 1.12, y: 0.42}
+  shadowColor: {r: 1, g: 1, b: 1, a: 0.82}
+  topPipSize: 0.035
+  topFaceCenter: {x: -0.02, y: 0.405}
+  topFacePositionOffset: {x: 0, y: 0}
+  topFaceSpacing: {x: 0.11, y: 0.038}
+  topFaceSafeHalfSize: {x: 0.22, y: 0.06}
+  frontPipSize: 0.082
+  frontFaceCenter: {x: 0, y: -0.14}
+  frontFaceSpacing: {x: 0.19, y: 0.15}
+  frontFaceSafeHalfSize: {x: 0.42, y: 0.29}
+  flatSpellIconSize: 0.34
+  flatPipColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
+  bodySpriteSortingOrder: 0
+  spellIconSize: 0.42
+  spellIconFaceOffset: 0.003
+  spellIconRotationDegrees: -90
   bodyMaterial: {fileID: 2100000, guid: a6c811469f2f4e2698f6a449612f129d, type: 2}
   pipMaterial: {fileID: 2100000, guid: c3610a67bc7842e196c88e382f053d78, type: 2}
+  spellLoadout: {fileID: 0}
+  previewTopPip: 6
+  previewFrontPip: 2
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -237,11 +271,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   diceRoller: {fileID: 0}
   diceDamage: {fileID: 0}
+  spellLoadout: {fileID: 0}
   playerProgress: {fileID: 0}
   playerHealth: {fileID: 0}
   enemy: {fileID: 0}
   enemyPrefab: {fileID: 11400000, guid: cb6f18eece164f0799c91fae2c20125c, type: 3}
+  spellVfx: {fileID: 0}
   enemySpawnPosition: {x: 0, y: 2.5, z: 2.5}
+  enemySpacing: 1.45
+  twoEnemyStartStage: 5
+  threeEnemyStartStage: 10
+  enemySpellStartStage: 5
+  enemyFireballDefaultDamage: 1
   levelText: {fileID: 0}
   retryLastLevelButton: {fileID: 0}
 --- !u!114 &11400006
@@ -257,4 +298,33 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 20
+  healthBarRoot: {fileID: 0}
+  healthBarWorldOffset: {x: 0, y: -0.78, z: 0}
+  healthBarScreenOffset: {x: 0, y: 0}
+  healthFillImage: {fileID: 0}
   healthText: {fileID: 0}
+--- !u!114 &4179825836278914701
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 189ef420ba52e8447b770f347fbf04ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceSpellLoadout
+  equippedSpells:
+  - pip: 1
+    spell: {fileID: 0}
+  - pip: 2
+    spell: {fileID: 0}
+  - pip: 3
+    spell: {fileID: 0}
+  - pip: 4
+    spell: {fileID: 0}
+  - pip: 5
+    spell: {fileID: 0}
+  - pip: 6
+    spell: {fileID: 0}

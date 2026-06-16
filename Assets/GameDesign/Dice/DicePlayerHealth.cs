@@ -8,7 +8,8 @@ public sealed class DicePlayerHealth : MonoBehaviour
 {
     [SerializeField, Min(1)] private int maxHealth = 20;
     [SerializeField] private RectTransform healthBarRoot;
-    [SerializeField] private Vector3 healthBarWorldOffset = new(0f, -0.85f, 0f);
+    [SerializeField] private Vector3 healthBarWorldOffset = new(0f, -0.78f, 0f);
+    [SerializeField] private Vector2 healthBarScreenOffset;
     [SerializeField] private Image healthFillImage;
     [SerializeField] private TMP_Text healthText;
 
@@ -24,8 +25,20 @@ public sealed class DicePlayerHealth : MonoBehaviour
         RefreshUi();
     }
 
+    private void Start()
+    {
+        BindUiIfAvailable();
+        RefreshUi();
+        RefreshBarPosition();
+    }
+
     private void LateUpdate()
     {
+        if (healthBarRoot == null)
+        {
+            BindUiIfAvailable();
+        }
+
         RefreshBarPosition();
     }
 
@@ -52,16 +65,24 @@ public sealed class DicePlayerHealth : MonoBehaviour
     private void BindUiIfAvailable()
     {
         var mobileUi = MobileGameUiController.FindExisting();
-        if (mobileUi == null || healthText != null)
+        if (mobileUi == null)
         {
             return;
         }
 
-        healthText = mobileUi.HealthText;
+        if (healthText == null)
+        {
+            healthText = mobileUi.HealthText;
+        }
 
         if (healthFillImage == null)
         {
             healthFillImage = mobileUi.HealthFillImage;
+        }
+
+        if (healthBarRoot == null)
+        {
+            healthBarRoot = mobileUi.HealthBarRoot;
         }
     }
 
@@ -113,7 +134,9 @@ public sealed class DicePlayerHealth : MonoBehaviour
         var uiCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPosition, uiCamera, out var localPoint))
         {
-            healthBarRoot.anchoredPosition = localPoint;
+            var mobileUi = MobileGameUiController.FindExisting();
+            var uiOffset = mobileUi != null ? mobileUi.PlayerHealthBarPositionOffset : Vector2.zero;
+            healthBarRoot.anchoredPosition = localPoint + healthBarScreenOffset + uiOffset;
         }
     }
 

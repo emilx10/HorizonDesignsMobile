@@ -36,6 +36,8 @@ public sealed class DiceBattleController : MonoBehaviour
     private Coroutine levelTransitionRoutine;
     private DiceSpellDefinition enemyFireballSpell;
     private int currentEnemyCount = 1;
+    private bool playerRollInputRequested = true;
+    private MobileGameUiController mobileUi;
 
     private void Awake()
     {
@@ -87,8 +89,8 @@ public sealed class DiceBattleController : MonoBehaviour
         EnsurePrimaryEnemy();
         ConfigureEnemiesForCurrentLevel();
         ConfigureCameraForMobile();
-        SetPlayerRollInput(true);
         BindUiIfAvailable();
+        SetPlayerRollInput(true);
         RefreshLevelUi();
     }
 
@@ -110,6 +112,9 @@ public sealed class DiceBattleController : MonoBehaviour
         {
             retryLastLevelButton.onClick.AddListener(RetryLastLevel);
         }
+
+        SubscribeMobileUi();
+        ApplyPlayerRollInput();
     }
 
     private void OnDisable()
@@ -136,6 +141,8 @@ public sealed class DiceBattleController : MonoBehaviour
         {
             retryLastLevelButton.onClick.RemoveListener(RetryLastLevel);
         }
+
+        UnsubscribeMobileUi();
     }
 
     private void HandleRollFinished(int _)
@@ -404,10 +411,21 @@ public sealed class DiceBattleController : MonoBehaviour
 
     private void SetPlayerRollInput(bool enabled)
     {
+        playerRollInputRequested = enabled;
+        ApplyPlayerRollInput();
+    }
+
+    private void ApplyPlayerRollInput()
+    {
         if (diceRoller != null)
         {
-            diceRoller.SetInputEnabled(enabled);
+            diceRoller.SetInputEnabled(playerRollInputRequested && IsMainViewAllowed());
         }
+    }
+
+    private bool IsMainViewAllowed()
+    {
+        return mobileUi == null || mobileUi.IsMainViewActive;
     }
 
     private void SubscribeEnemies()
@@ -432,11 +450,13 @@ public sealed class DiceBattleController : MonoBehaviour
 
     private void BindUiIfAvailable()
     {
-        var mobileUi = MobileGameUiController.FindExisting();
+        mobileUi = MobileGameUiController.FindExisting();
         if (mobileUi == null)
         {
             return;
         }
+
+        SubscribeMobileUi();
 
         if (levelText == null)
         {
@@ -447,6 +467,35 @@ public sealed class DiceBattleController : MonoBehaviour
         {
             retryLastLevelButton = mobileUi.RetryLevelButton;
         }
+    }
+
+    private void SubscribeMobileUi()
+    {
+        if (mobileUi == null)
+        {
+            mobileUi = MobileGameUiController.FindExisting();
+        }
+
+        if (mobileUi == null)
+        {
+            return;
+        }
+
+        mobileUi.MainViewActiveChanged -= HandleMainViewActiveChanged;
+        mobileUi.MainViewActiveChanged += HandleMainViewActiveChanged;
+    }
+
+    private void UnsubscribeMobileUi()
+    {
+        if (mobileUi != null)
+        {
+            mobileUi.MainViewActiveChanged -= HandleMainViewActiveChanged;
+        }
+    }
+
+    private void HandleMainViewActiveChanged(bool _)
+    {
+        ApplyPlayerRollInput();
     }
 
     private void ConfigureCameraForMobile()

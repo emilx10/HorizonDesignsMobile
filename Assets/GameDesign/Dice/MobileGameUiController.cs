@@ -1,12 +1,14 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using System;
 using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public sealed class MobileGameUiController : MonoBehaviour
 {
     public static MobileGameUiController Instance { get; private set; }
+    public event Action<bool> MainViewActiveChanged;
 
     [Header("Value Text References")]
     [SerializeField] private TMP_Text levelText;
@@ -35,6 +37,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     [SerializeField] private TMP_Text retryLevelButtonText;
     [SerializeField] private TMP_Text upgradeSectionButtonText;
     [SerializeField] private TMP_Text summonsButtonText;
+    [SerializeField] private TMP_Text diceEditorButtonText;
     [SerializeField] private TMP_Text settingsButtonText;
     [SerializeField] private TMP_Text infoButtonText;
     [SerializeField] private TMP_Text backToGameplayButtonText;
@@ -55,6 +58,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     [SerializeField] private string retryLevelLabel = "Retry Level";
     [SerializeField] private string upgradeSectionLabel = "Upgrade Section";
     [SerializeField] private string summonsLabel = "Summons";
+    [SerializeField] private string diceEditorLabel = "Dice Editor";
     [SerializeField] private string settingsLabel = "Settings";
     [SerializeField] private string infoLabel = "Info";
     [SerializeField] private string backToGameplayLabel = "Back To Gameplay";
@@ -76,13 +80,23 @@ public sealed class MobileGameUiController : MonoBehaviour
     [SerializeField] private string upgradeCostAmountFormat = "{0}";
 
     [Header("Images")]
+    [SerializeField] private RectTransform healthBarRoot;
     [SerializeField] private Image healthFillImage;
+    [SerializeField] private bool stylizeHealthBar = true;
+    [SerializeField] private Color healthBarFrameColor = new(0.2f, 0.02f, 0.08f, 1f);
+    [SerializeField] private Color healthBarTrackColor = new(0.03f, 0.01f, 0.015f, 0.95f);
+    [SerializeField] private Color healthBarFillColor = new(0.84f, 1f, 0.22f, 1f);
+    [SerializeField] private Color healthBarFillLowColor = new(1f, 0.25f, 0.18f, 1f);
+    [SerializeField] private Color healthBarShineColor = new(1f, 1f, 1f, 0.28f);
+    [SerializeField, Min(0f)] private float healthBarPadding = 10f;
+    [SerializeField] private Vector2 playerHealthBarPositionOffset;
 
     [Header("Buttons")]
     [SerializeField] private Button upgradeDamageButton;
     [SerializeField] private Button retryLevelButton;
     [SerializeField] private Button upgradeSectionButton;
     [SerializeField] private Button summonsButton;
+    [SerializeField] private Button diceEditorButton;
     [SerializeField] private Button settingsButton;
     [SerializeField] private Button infoButton;
     [SerializeField] private Button backToGameplayButton;
@@ -123,6 +137,8 @@ public sealed class MobileGameUiController : MonoBehaviour
     public TMP_Text HealthText => healthText;
     public TMP_Text UpgradeButtonText => upgradeButtonText;
     public Image HealthFillImage => healthFillImage;
+    public RectTransform HealthBarRoot => healthBarRoot;
+    public Vector2 PlayerHealthBarPositionOffset => playerHealthBarPositionOffset;
     public Button UpgradeDamageButton => upgradeDamageButton;
     public Button RetryLevelButton => retryLevelButton;
     public Button BackToGameplayButton => backToGameplayButton;
@@ -130,18 +146,26 @@ public sealed class MobileGameUiController : MonoBehaviour
     public Button SettingsOkButton => settingsOkButton;
     public Button EquipSpellButton => equipSpellButton;
     public Button CloseInfoButton => closeInfoButton;
+    public bool IsMainViewActive => mainView == null || mainView.activeInHierarchy;
     public int DamageUpgradeCost => CalculateCost(damageUpgradeBaseCost, damageUpgradeCostIncreasePerBuy, damageUpgradeBuys);
     public int SpellDamageUpgradeCost => CalculateCost(spellDamageUpgradeBaseCost, spellDamageUpgradeCostIncreasePerBuy, spellDamageUpgradeBuys);
     public int CooldownUpgradeCost => CalculateCost(cooldownUpgradeBaseCost, cooldownUpgradeCostIncreasePerBuy, cooldownUpgradeBuys);
 
     private bool listenersBound;
     private bool spellEquipped;
+    private bool lastMainViewActive;
     private Canvas cachedCanvas;
     private RectTransform cachedCanvasRect;
     private Vector2 lastCanvasSize;
     private Rect lastSafeArea;
     private bool responsiveRectsCached;
+    private Image styledHealthFillImage;
+    private Image styledHealthShineImage;
     private readonly List<ResponsiveRect> responsiveRects = new();
+
+    private const string StyledHealthTrackName = "Stylized Health Track";
+    private const string StyledHealthFillName = "Stylized Health Fill";
+    private const string StyledHealthShineName = "Stylized Health Shine";
 
     private struct ResponsiveRect
     {
@@ -171,7 +195,9 @@ public sealed class MobileGameUiController : MonoBehaviour
     private void Awake()
     {
         Instance = this;
+        lastMainViewActive = IsMainViewActive;
         CacheMissingButtonTextReferences();
+        ConfigureHealthBarStyle();
         ConfigureCanvas();
         ConfigureViewRoots();
         CacheResponsiveRects();
@@ -187,6 +213,7 @@ public sealed class MobileGameUiController : MonoBehaviour
     private void Start()
     {
         CacheMissingButtonTextReferences();
+        ConfigureHealthBarStyle();
         ConfigureCanvas();
         ConfigureViewRoots();
         CacheResponsiveRects();
@@ -227,6 +254,7 @@ public sealed class MobileGameUiController : MonoBehaviour
 
         SetText(upgradeSectionButtonText, upgradeSectionLabel);
         SetText(summonsButtonText, summonsLabel);
+        SetText(diceEditorButtonText, diceEditorLabel);
         SetText(settingsButtonText, settingsLabel);
         SetText(infoButtonText, infoLabel);
         SetText(backToGameplayButtonText, backToGameplayLabel);
@@ -293,6 +321,12 @@ public sealed class MobileGameUiController : MonoBehaviour
         if (healthFillImage != null)
         {
             healthFillImage.fillAmount = previewCurrentHealth / previewMaxHealth;
+            healthFillImage.color = Color.Lerp(healthBarFillLowColor, healthBarFillColor, healthFillImage.fillAmount);
+        }
+
+        if (styledHealthShineImage != null)
+        {
+            styledHealthShineImage.fillAmount = healthFillImage != null ? healthFillImage.fillAmount : 0f;
         }
     }
 
@@ -362,12 +396,21 @@ public sealed class MobileGameUiController : MonoBehaviour
 
     private void SetView(GameObject activeView, bool showGameplayChrome)
     {
+        var wasMainViewActive = IsMainViewActive;
+
         SetActiveIfAssigned(gameplayChrome, showGameplayChrome);
         SetActiveIfAssigned(mainView, mainView == activeView);
         SetActiveIfAssigned(upgradeView, upgradeView == activeView);
         SetActiveIfAssigned(spellsView, spellsView == activeView);
         SetActiveIfAssigned(settingsView, settingsView == activeView);
         SetActiveIfAssigned(infoView, infoView == activeView);
+
+        var isMainViewActive = IsMainViewActive;
+        if (wasMainViewActive != isMainViewActive || lastMainViewActive != isMainViewActive)
+        {
+            lastMainViewActive = isMainViewActive;
+            MainViewActiveChanged?.Invoke(isMainViewActive);
+        }
     }
 
     private void AddButtonListeners()
@@ -380,6 +423,7 @@ public sealed class MobileGameUiController : MonoBehaviour
         listenersBound = true;
         AddListener(upgradeSectionButton, ShowUpgrade);
         AddListener(summonsButton, OpenSummons);
+        AddListener(diceEditorButton, ShowSpells);
         AddListener(settingsButton, ShowSettings);
         AddListener(infoButton, ShowInfo);
         AddListener(backToGameplayButton, ShowMain);
@@ -399,6 +443,7 @@ public sealed class MobileGameUiController : MonoBehaviour
         listenersBound = false;
         RemoveListener(upgradeSectionButton, ShowUpgrade);
         RemoveListener(summonsButton, OpenSummons);
+        RemoveListener(diceEditorButton, ShowSpells);
         RemoveListener(settingsButton, ShowSettings);
         RemoveListener(infoButton, ShowInfo);
         RemoveListener(backToGameplayButton, ShowMain);
@@ -414,6 +459,7 @@ public sealed class MobileGameUiController : MonoBehaviour
         equipSpellButtonText = GetTextIfMissing(equipSpellButtonText, equipSpellButton);
         upgradeSectionButtonText = GetTextIfMissing(upgradeSectionButtonText, upgradeSectionButton);
         summonsButtonText = GetTextIfMissing(summonsButtonText, summonsButton);
+        diceEditorButtonText = GetTextIfMissing(diceEditorButtonText, diceEditorButton);
         settingsButtonText = GetTextIfMissing(settingsButtonText, settingsButton);
         infoButtonText = GetTextIfMissing(infoButtonText, infoButton);
         backToGameplayButtonText = GetTextIfMissing(backToGameplayButtonText, backToGameplayButton);
@@ -431,6 +477,104 @@ public sealed class MobileGameUiController : MonoBehaviour
         }
 
         ShowSpells();
+    }
+
+    private void ConfigureHealthBarStyle()
+    {
+        if (!stylizeHealthBar || healthFillImage == null)
+        {
+            return;
+        }
+
+        if (styledHealthFillImage != null && healthFillImage == styledHealthFillImage)
+        {
+            return;
+        }
+
+        var rootImage = healthFillImage;
+        var rootRect = rootImage.rectTransform;
+        healthBarRoot = rootRect;
+        var currentFill = Mathf.Clamp01(rootImage.fillAmount);
+
+        rootImage.type = Image.Type.Sliced;
+        rootImage.color = healthBarFrameColor;
+        rootImage.raycastTarget = false;
+
+        var outline = rootImage.GetComponent<Outline>();
+        if (outline == null)
+        {
+            outline = rootImage.gameObject.AddComponent<Outline>();
+        }
+
+        outline.effectColor = new Color(0.03f, 0.005f, 0.015f, 1f);
+        outline.effectDistance = new Vector2(5f, -5f);
+        outline.useGraphicAlpha = true;
+
+        var shadow = rootImage.GetComponent<Shadow>();
+        if (shadow == null)
+        {
+            shadow = rootImage.gameObject.AddComponent<Shadow>();
+        }
+
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.35f);
+        shadow.effectDistance = new Vector2(0f, -5f);
+        shadow.useGraphicAlpha = true;
+
+        var track = GetOrCreateHealthBarImage(rootRect, StyledHealthTrackName);
+        var trackRect = track.rectTransform;
+        trackRect.anchorMin = Vector2.zero;
+        trackRect.anchorMax = Vector2.one;
+        trackRect.offsetMin = new Vector2(healthBarPadding, healthBarPadding);
+        trackRect.offsetMax = new Vector2(-healthBarPadding, -healthBarPadding);
+        track.color = healthBarTrackColor;
+        track.type = Image.Type.Sliced;
+        track.raycastTarget = false;
+
+        styledHealthFillImage = GetOrCreateHealthBarImage(trackRect, StyledHealthFillName);
+        var fillRect = styledHealthFillImage.rectTransform;
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = Vector2.one;
+        fillRect.offsetMin = new Vector2(4f, 4f);
+        fillRect.offsetMax = new Vector2(-4f, -4f);
+        styledHealthFillImage.type = Image.Type.Filled;
+        styledHealthFillImage.fillMethod = Image.FillMethod.Horizontal;
+        styledHealthFillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+        styledHealthFillImage.fillAmount = currentFill;
+        styledHealthFillImage.color = Color.Lerp(healthBarFillLowColor, healthBarFillColor, currentFill);
+        styledHealthFillImage.raycastTarget = false;
+
+        styledHealthShineImage = GetOrCreateHealthBarImage(fillRect, StyledHealthShineName);
+        var shineRect = styledHealthShineImage.rectTransform;
+        shineRect.anchorMin = new Vector2(0f, 0.58f);
+        shineRect.anchorMax = Vector2.one;
+        shineRect.offsetMin = Vector2.zero;
+        shineRect.offsetMax = Vector2.zero;
+        styledHealthShineImage.type = Image.Type.Filled;
+        styledHealthShineImage.fillMethod = Image.FillMethod.Horizontal;
+        styledHealthShineImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+        styledHealthShineImage.fillAmount = currentFill;
+        styledHealthShineImage.color = healthBarShineColor;
+        styledHealthShineImage.raycastTarget = false;
+
+        healthFillImage = styledHealthFillImage;
+
+        if (healthText != null)
+        {
+            healthText.transform.SetAsLastSibling();
+        }
+    }
+
+    private static Image GetOrCreateHealthBarImage(RectTransform parent, string objectName)
+    {
+        var existing = parent.Find(objectName);
+        if (existing != null && existing.TryGetComponent(out Image existingImage))
+        {
+            return existingImage;
+        }
+
+        var imageObject = new GameObject(objectName, typeof(RectTransform), typeof(Image));
+        imageObject.transform.SetParent(parent, false);
+        return imageObject.GetComponent<Image>();
     }
 
     private void ConfigureCanvas()

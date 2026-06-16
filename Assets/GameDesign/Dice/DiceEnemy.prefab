@@ -51,7 +51,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 100000}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -133,16 +133,18 @@ MonoBehaviour:
   baseCoinReward: 1
   levelsPerCoinRewardStep: 5
   respawnDelay: 1.25
+  autoRespawn: 1
   rollDuration: 0.8
   extraSpinTurns: 2
   swingHeight: 0.25
   targetCamera: {fileID: 0}
   healthText: {fileID: 0}
   damageText: {fileID: 0}
+  burnIndicatorIcon: {fileID: 0}
   healthBarFill: {fileID: 0}
-  healthTextOffset: {x: 0, y: 0.85, z: 0}
-  healthBarOffset: {x: 0, y: 0.68, z: 0}
-  damageTextOffset: {x: 0, y: -0.85, z: 0}
+  healthTextOffset: {x: 0, y: 0.92, z: 0}
+  healthBarOffset: {x: 0, y: 0.76, z: 0}
+  damageTextOffset: {x: 0, y: -0.95, z: 0}
 --- !u!114 &11400001
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -158,5 +160,29 @@ MonoBehaviour:
   size: 1
   pipRadius: 0.075
   pipDepth: 0.018
+  bodySprite: {fileID: 21300000, guid: 402f712e460343e4a9eb602f76f74697, type: 3}
+  bodySpriteSize: 1.35
+  shadowSprite: {fileID: 21300000, guid: 484376839542dd9458ec416cf0b0916f, type: 3}
+  shadowOffset: {x: 0, y: -0.47}
+  shadowScale: {x: 1.12, y: 0.42}
+  shadowColor: {r: 1, g: 1, b: 1, a: 0.82}
+  topPipSize: 0.05
+  topFaceCenter: {x: 0, y: 0.49}
+  topFacePositionOffset: {x: 0, y: 0}
+  topFaceSpacing: {x: 0.1, y: 1}
+  topFaceSafeHalfSize: {x: 0.22, y: 0.08}
+  frontPipSize: 0.082
+  frontFaceCenter: {x: 0, y: -0.14}
+  frontFaceSpacing: {x: 0.19, y: 0.15}
+  frontFaceSafeHalfSize: {x: 0.42, y: 0.29}
+  flatSpellIconSize: 0.34
+  flatPipColor: {r: 0.08, g: 0.08, b: 0.08, a: 1}
+  bodySpriteSortingOrder: 0
+  spellIconSize: 0.42
+  spellIconFaceOffset: 0.003
+  spellIconRotationDegrees: -90
   bodyMaterial: {fileID: 2100000, guid: 92f155d5062f420d9e4a7d1ed0e7a179, type: 2}
   pipMaterial: {fileID: 2100000, guid: c3610a67bc7842e196c88e382f053d78, type: 2}
+  spellLoadout: {fileID: 0}
+  previewTopPip: 6
+  previewFrontPip: 2

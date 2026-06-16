@@ -41,9 +41,15 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
     {
         if (diceRoller != null)
         {
+            diceRoller.ValueChanged += HandleRollFinished;
             diceRoller.RollFinished += HandleRollFinished;
         }
 
+        Refresh();
+    }
+
+    private void Start()
+    {
         Refresh();
     }
 
@@ -51,6 +57,7 @@ public sealed class D6DiceDamageDisplay : MonoBehaviour
     {
         if (diceRoller != null)
         {
+            diceRoller.ValueChanged -= HandleRollFinished;
             diceRoller.RollFinished -= HandleRollFinished;
         }
     }

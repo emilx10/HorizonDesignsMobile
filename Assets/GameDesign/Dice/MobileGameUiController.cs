@@ -603,7 +603,7 @@ public sealed class MobileGameUiController : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = referenceResolution;
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = matchWidthOrHeight;
+        scaler.matchWidthOrHeight = GetResponsiveMatchWidthOrHeight();
     }
 
     private void ConfigureViewRoots()
@@ -716,6 +716,20 @@ public sealed class MobileGameUiController : MonoBehaviour
         lastCanvasSize = currentSize;
         lastSafeArea = currentSafeArea;
 
+        if (configureCanvasScalerForPortrait && cachedCanvas != null)
+        {
+            var scaler = cachedCanvas.GetComponent<CanvasScaler>();
+            if (scaler != null)
+            {
+                scaler.matchWidthOrHeight = GetResponsiveMatchWidthOrHeight();
+            }
+        }
+
+        if (anchorUpgradeViewToBottom)
+        {
+            UpdateBottomPanelLayout(upgradeView, currentSize, currentSafeArea);
+        }
+
         var halfHeightDelta = (currentSize.y - referenceResolution.y) * 0.5f;
         var canvasUnitsPerPixel = Screen.width > 0 ? currentSize.x / Screen.width : 1f;
         var topInset = Screen.height > 0 ? Mathf.Max(0f, Screen.height - currentSafeArea.yMax) * canvasUnitsPerPixel : 0f;
@@ -740,6 +754,56 @@ public sealed class MobileGameUiController : MonoBehaviour
 
             item.Rect.anchoredPosition = position;
         }
+    }
+
+    private float GetResponsiveMatchWidthOrHeight()
+    {
+        if (Screen.width <= 0 || Screen.height <= 0)
+        {
+            return matchWidthOrHeight;
+        }
+
+        var portraitAspect = (float)Screen.height / Screen.width;
+        if (portraitAspect <= 1.75f)
+        {
+            return 0.72f;
+        }
+
+        if (portraitAspect <= 1.95f)
+        {
+            return 0.5f;
+        }
+
+        if (portraitAspect <= 2.1f)
+        {
+            return 0.32f;
+        }
+
+        return 0.18f;
+    }
+
+    private void UpdateBottomPanelLayout(GameObject target, Vector2 currentSize, Rect currentSafeArea)
+    {
+        if (target == null || target.transform is not RectTransform rect)
+        {
+            return;
+        }
+
+        var canvasUnitsPerPixel = Screen.width > 0 ? currentSize.x / Screen.width : 1f;
+        var bottomInset = Screen.height > 0 ? Mathf.Max(0f, currentSafeArea.yMin) * canvasUnitsPerPixel : 0f;
+        var sideInsetLeft = Screen.width > 0 ? Mathf.Max(0f, currentSafeArea.xMin) * canvasUnitsPerPixel : 0f;
+        var sideInsetRight = Screen.width > 0 ? Mathf.Max(0f, Screen.width - currentSafeArea.xMax) * canvasUnitsPerPixel : 0f;
+        var height = rect.rect.height > 0f ? rect.rect.height : Mathf.Abs(rect.sizeDelta.y);
+        if (height <= 0f)
+        {
+            height = referenceResolution.y * 0.33f;
+        }
+
+        rect.anchorMin = new Vector2(0f, 0f);
+        rect.anchorMax = new Vector2(1f, 0f);
+        rect.pivot = new Vector2(0.5f, 0f);
+        rect.offsetMin = new Vector2(upgradeViewHorizontalMargin + sideInsetLeft, upgradeViewBottomMargin + bottomInset);
+        rect.offsetMax = new Vector2(-(upgradeViewHorizontalMargin + sideInsetRight), upgradeViewBottomMargin + bottomInset + height);
     }
 
     private static void StretchToParent(GameObject target)

@@ -1664,11 +1664,11 @@ MonoBehaviour:
   hideGameplayChromeOnSettingsAndInfo: 1
   applyInspectorTextOnStart: 1
   configureCanvasScalerForPortrait: 1
-  stretchFullScreenViewsToCanvas: 0
-  anchorUpgradeViewToBottom: 0
-  adaptCenterAnchoredLayout: 0
+  stretchFullScreenViewsToCanvas: 1
+  anchorUpgradeViewToBottom: 1
+  adaptCenterAnchoredLayout: 1
   referenceResolution: {x: 1080, y: 1920}
-  matchWidthOrHeight: 0
+  matchWidthOrHeight: 0.35
   topBottomZoneThreshold: 300
   upgradeViewHorizontalMargin: 44
   upgradeViewBottomMargin: 0

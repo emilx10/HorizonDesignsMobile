@@ -1,5 +1,9 @@
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
+[ExecuteAlways]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Camera))]
 public sealed class MobilePortraitCameraFitter : MonoBehaviour
@@ -19,18 +23,61 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
     private void Awake()
     {
         targetCamera = GetComponent<Camera>();
-        ApplyPortraitOnly();
+
+        if (!Application.isPlaying)
+        {
+            ApplyEditorPreview();
+            return;
+        }
+
+        ApplyPortraitLock();
         FitNow();
+    }
+
+    private void OnEnable()
+    {
+        ApplyPortraitLock();
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        if (hasFocus)
+        {
+            ApplyPortraitLock();
+            FitNow();
+        }
+    }
+
+    private void OnApplicationPause(bool paused)
+    {
+        if (!paused)
+        {
+            ApplyPortraitLock();
+            FitNow();
+        }
     }
 
     private void LateUpdate()
     {
-        ApplyPortraitOnly();
+        if (!Application.isPlaying)
+        {
+            ApplyEditorPreview();
+            return;
+        }
+
         MobileLayoutUtility.RefreshSafeArea();
 
         if (lastScreenWidth != Screen.width || lastScreenHeight != Screen.height)
         {
             FitNow();
+        }
+    }
+
+    private void OnValidate()
+    {
+        if (!Application.isPlaying)
+        {
+            ApplyEditorPreview();
         }
     }
 
@@ -52,11 +99,6 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
         lastScreenHeight = Screen.height;
 
         transform.SetPositionAndRotation(portraitPosition, Quaternion.Euler(portraitEulerAngles));
-
-        if (Screen.width > Screen.height)
-        {
-            Screen.orientation = ScreenOrientation.Portrait;
-        }
 
         var bounds = BuildBounds();
         var center = bounds.center;
@@ -120,7 +162,7 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
 
     private void ExpandUntilBoundsFit(Bounds bounds)
     {
-        const float viewportPadding = 0.08f;
+        var viewportPadding = GetViewportPadding();
 
         for (var i = 0; i < 12; i++)
         {
@@ -133,7 +175,7 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
         }
     }
 
-    private bool BoundsFitViewport(Bounds bounds, float padding)
+    private bool BoundsFitViewport(Bounds bounds, Vector4 padding)
     {
         var min = bounds.min - (Vector3.one * worldPadding);
         var max = bounds.max + (Vector3.one * worldPadding);
@@ -151,10 +193,10 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
                     var viewport = targetCamera.WorldToViewportPoint(point);
 
                     if (viewport.z <= 0f
-                        || viewport.x < padding
-                        || viewport.x > 1f - padding
-                        || viewport.y < padding
-                        || viewport.y > 1f - padding)
+                        || viewport.x < padding.x
+                        || viewport.x > 1f - padding.z
+                        || viewport.y < padding.y
+                        || viewport.y > 1f - padding.w)
                     {
                         return false;
                     }
@@ -165,7 +207,54 @@ public sealed class MobilePortraitCameraFitter : MonoBehaviour
         return true;
     }
 
-    private static void ApplyPortraitOnly()
+    private static Vector4 GetViewportPadding()
+    {
+        const float baseHorizontalPadding = 0.05f;
+        const float baseBottomPadding = 0.06f;
+        const float baseTopPadding = 0.08f;
+
+        if (Screen.width <= 0 || Screen.height <= 0)
+        {
+            return new Vector4(baseHorizontalPadding, baseBottomPadding, baseHorizontalPadding, baseTopPadding);
+        }
+
+        var safeArea = Screen.safeArea;
+        var leftInset = Mathf.Clamp01(safeArea.xMin / Screen.width);
+        var rightInset = Mathf.Clamp01((Screen.width - safeArea.xMax) / Screen.width);
+        var bottomInset = Mathf.Clamp01(safeArea.yMin / Screen.height);
+        var topInset = Mathf.Clamp01((Screen.height - safeArea.yMax) / Screen.height);
+
+        return new Vector4(
+            Mathf.Min(0.25f, baseHorizontalPadding + leftInset),
+            Mathf.Min(0.25f, baseBottomPadding + bottomInset),
+            Mathf.Min(0.25f, baseHorizontalPadding + rightInset),
+            Mathf.Min(0.3f, baseTopPadding + topInset));
+    }
+
+    private void ApplyEditorPreview()
+    {
+        if (targetCamera == null)
+        {
+            targetCamera = GetComponent<Camera>();
+        }
+
+        if (targetCamera == null)
+        {
+            return;
+        }
+
+        transform.SetPositionAndRotation(portraitPosition, Quaternion.Euler(portraitEulerAngles));
+        targetCamera.orthographic = true;
+
+#if UNITY_EDITOR
+        if (!EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            EditorUtility.SetDirty(this);
+        }
+#endif
+    }
+
+    private static void ApplyPortraitLock()
     {
         Screen.autorotateToPortrait = true;
         Screen.autorotateToPortraitUpsideDown = false;
